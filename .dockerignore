@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment Variables (will be set via docker-compose)
+.env
+.env.local
+
+# Data (will be mounted as volumes)
+data/uploads/*
+data/chroma_db/*
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation (not needed in container)
+README.md
+QUICKSTART.md
+CONTRIBUTING.md
+CHANGELOG.md
+SETUP-ANLEITUNG.md
+*.md
+
+# Tests (not needed in production)
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+pytest.ini
+
+# Development tools (not needed in production)
+requirements-dev.txt
+.pre-commit-config.yaml
+Makefile
+.editorconfig
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker files (already in docker/ directory)
+docker/

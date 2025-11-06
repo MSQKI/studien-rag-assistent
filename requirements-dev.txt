@@ -1,0 +1,39 @@
+# Development dependencies
+# Install with: pip install -r requirements-dev.txt
+
+# Include base requirements
+-r requirements.txt
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.25.0
+pytest-cov==6.0.0
+pytest-mock==3.14.0
+pytest-xdist==3.6.1  # Parallel test execution
+
+# Code Quality
+black==24.10.0
+flake8==7.1.1
+mypy==1.14.0
+isort==5.13.2
+pylint==3.3.2
+
+# Type Stubs
+types-requests==2.32.0.20241016
+
+# Documentation
+mkdocs==1.6.1
+mkdocs-material==9.5.47
+
+# Debugging
+ipdb==0.13.13
+ipython==8.30.0
+
+# Performance Testing
+pytest-benchmark==5.1.0
+
+# Security
+bandit==1.8.0  # Security linter
+
+# Pre-commit hooks
+pre-commit==4.0.1

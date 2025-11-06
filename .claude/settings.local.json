@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(src/__init__.py)",
+      "Bash(tests/__init__.py)",
+      "Bash(data/uploads/.gitkeep)",
+      "Bash(data/chroma_db/.gitkeep)",
+      "Bash(tree:*)",
+      "Bash(npx -y @smithery/cli install @upstash/context7-mcp --client claude)",
+      "Bash(docker-compose down:*)",
+      "Bash(xargs:*)",
+      "Bash(docker-compose build:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker-compose logs:*)",
+      "WebSearch",
+      "Bash($null)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "Bash(docker logs:*)",
+      "Bash(curl:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker run:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
