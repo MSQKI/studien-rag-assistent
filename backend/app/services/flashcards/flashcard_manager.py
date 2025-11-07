@@ -601,6 +601,34 @@ class FlashcardManager:
         logger.info(f"Deleted {count} flashcards for document: {document_id}")
         return count
 
+    def delete_all_flashcards(self) -> int:
+        """
+        Delete ALL flashcards from the database.
+
+        ⚠️ WARNING: This action cannot be undone!
+
+        Returns:
+            Number of flashcards deleted
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        # Get count before deletion
+        cursor.execute("SELECT COUNT(*) FROM flashcards")
+        count = cursor.fetchone()[0]
+
+        # Delete all review history
+        cursor.execute("DELETE FROM review_history")
+
+        # Delete all flashcards
+        cursor.execute("DELETE FROM flashcards")
+
+        conn.commit()
+        conn.close()
+
+        logger.warning(f"Deleted ALL flashcards: {count} cards removed")
+        return count
+
     def _row_to_dict(self, row: sqlite3.Row) -> Dict[str, Any]:
         """
         Convert database row to dictionary.

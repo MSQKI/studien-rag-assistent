@@ -9,35 +9,56 @@ import { graphAPI } from '../../services/api';
 const GraphPage: React.FC = () => {
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [depth, setDepth] = useState(2);
   const cyRef = useRef<Cytoscape.Core | null>(null);
 
-  // Fetch concepts from API
-  const { data: concepts, isLoading, error } = useQuery({
-    queryKey: ['concepts'],
-    queryFn: () => graphAPI.getConcepts(),
+  // Fetch graph data from API
+  const { data: graphData, isLoading, error, isError } = useQuery({
+    queryKey: ['graph-data'],
+    queryFn: async () => {
+      const data = await graphAPI.getConcepts();
+      console.log('Graph data fetched:', data);
+      return data;
+    },
+    retry: 1,
   });
 
-  // Transform concepts to Cytoscape format
+  // Transform graph data to Cytoscape format
   const elements = React.useMemo(() => {
-    if (!concepts || concepts.length === 0) return [];
+    if (!graphData || !graphData.nodes || graphData.nodes.length === 0) {
+      console.log('No graph data to display:', graphData);
+      return [];
+    }
 
-    const nodes = concepts.map((concept: any) => ({
+    console.log(`Transforming ${graphData.nodes.length} nodes and ${graphData.edges?.length || 0} edges`);
+
+    // Create nodes
+    const nodes = graphData.nodes.map((node: any) => ({
       data: {
-        id: concept.name,
-        label: concept.name,
-        type: concept.type,
-        description: concept.description,
+        id: node.name,
+        label: node.name,
+        type: node.type,
+        description: node.description,
       },
     }));
 
-    // For now, no edges since we don't have relationship data
-    // In a real implementation, you'd fetch relationships too
-    return nodes;
-  }, [concepts]);
+    // Create edges
+    const edges = (graphData.edges || []).map((edge: any) => ({
+      data: {
+        id: `${edge.source}-${edge.target}`,
+        source: edge.source,
+        target: edge.target,
+        label: edge.type,
+        type: edge.type,
+      },
+    }));
+
+    console.log('Generated nodes:', nodes.length, 'edges:', edges.length);
+
+    return [...nodes, ...edges];
+  }, [graphData]);
 
   // Cytoscape stylesheet
-  const stylesheet: Cytoscape.Stylesheet[] = [
+  const stylesheet: any[] = [
     {
       selector: 'node',
       style: {
@@ -206,9 +227,10 @@ const GraphPage: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
               <p>Lade Graph...</p>
             </div>
-          ) : error ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-              <p style={{ color: '#e74c3c' }}>Fehler beim Laden des Graphs</p>
+          ) : isError || error ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+              <p style={{ color: '#e74c3c', marginBottom: '10px' }}>Fehler beim Laden des Graphs</p>
+              <p style={{ color: '#999', fontSize: '14px' }}>{error?.toString() || 'Unbekannter Fehler'}</p>
             </div>
           ) : elements.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
@@ -224,7 +246,7 @@ const GraphPage: React.FC = () => {
               style={{ width: '100%', height: '100%' }}
               stylesheet={stylesheet}
               layout={layout}
-              cy={(cy) => {
+              cy={(cy: Cytoscape.Core) => {
                 cyRef.current = cy;
               }}
             />

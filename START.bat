@@ -1,60 +1,69 @@
 @echo off
+REM ========================================
+REM  Studien-RAG-Assistent - Start Script
+REM  Windows Edition
+REM ========================================
+
+echo.
 echo ========================================
-echo Study Platform - Quick Start
+echo   Studien-RAG-Assistent wird gestartet
 echo ========================================
 echo.
 
 REM Check if Docker is running
-docker ps >nul 2>&1
-if %errorlevel% neq 0 (
-    echo ERROR: Docker is not running!
-    echo Please start Docker Desktop and try again.
+docker --version >nul 2>&1
+if errorlevel 1 (
+    echo FEHLER: Docker ist nicht installiert oder laeuft nicht!
+    echo Bitte installiere Docker Desktop von https://www.docker.com/products/docker-desktop
+    echo.
     pause
     exit /b 1
 )
 
-echo [1/3] Checking configuration...
+REM Check if .env file exists
 if not exist ".env" (
+    echo FEHLER: .env Datei nicht gefunden!
+    echo Bitte erstelle eine .env Datei mit deinem OpenAI API Key.
     echo.
-    echo WARNING: .env file not found!
-    echo.
-    echo Please create a .env file with your OpenAI API key:
-    echo.
-    echo OPENAI_API_KEY=sk-your-key-here
+    echo Beispiel:
+    echo OPENAI_API_KEY=sk-...dein-key-hier...
     echo.
     pause
     exit /b 1
 )
 
-echo [2/3] Starting all services...
+echo [1/4] Stoppe alte Container falls vorhanden...
 cd docker
+docker-compose -f docker-compose-full.yml down 2>nul
+
+echo.
+echo [2/4] Starte alle Services (das kann 1-2 Minuten dauern)...
 docker-compose -f docker-compose-full.yml up -d
 
 echo.
-echo [3/3] Waiting for services to be ready...
+echo [3/4] Warte bis alle Services bereit sind...
 timeout /t 10 /nobreak >nul
 
 echo.
-echo ========================================
-echo Services are starting!
-echo ========================================
-echo.
-echo Frontend:     http://localhost:3000
-echo Backend API:  http://localhost:8000
-echo API Docs:     http://localhost:8000/api/docs
-echo Neo4j:        http://localhost:7474
-echo Streamlit:    http://localhost:8501
-echo.
-echo Neo4j Login:
-echo   Username: neo4j
-echo   Password: studyplatform2024
+echo [4/4] Ueberpruefe Status...
+docker-compose -f docker-compose-full.yml ps
+
 echo.
 echo ========================================
+echo   Start abgeschlossen!
+echo ========================================
 echo.
-echo Opening frontend in browser...
-start http://localhost:3000
+echo Deine Studienplattform ist jetzt verfuegbar:
 echo.
-echo To view logs: docker-compose -f docker/docker-compose-full.yml logs -f
-echo To stop: docker-compose -f docker/docker-compose-full.yml down
+echo   Frontend (Hauptanwendung): http://localhost:3000
+echo   Backend API Docs:          http://localhost:8000/docs
+echo   Neo4j Browser:             http://localhost:7474
+echo   Streamlit (Legacy):        http://localhost:8501
 echo.
-pause
+echo Druecke Ctrl+C um die Logs zu beenden (Services laufen weiter)
+echo Zum Stoppen: stop.bat ausfuehren
+echo.
+echo ========================================
+
+REM Show logs
+docker-compose -f docker-compose-full.yml logs -f

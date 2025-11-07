@@ -71,34 +71,48 @@ async def extract_entities(
     )
 
 
-@router.get("/concepts", response_model=List[ConceptNode])
+@router.get("/concepts", response_model=GraphData)
 async def list_concepts(
     subject: str | None = Query(None, description="Filter by subject"),
     graph_builder: GraphBuilder = Depends(get_graph_builder)
 ):
     """
-    List all concepts in the knowledge graph.
+    Get complete graph data with nodes and relationships.
 
     Args:
         subject: Optional subject filter
         graph_builder: Graph builder instance
 
     Returns:
-        List of concept nodes
+        Graph data with nodes and edges
     """
     try:
-        concepts = graph_builder.get_all_concepts(subject=subject)
-        return [
+        graph_data = graph_builder.get_graph_data(subject=subject)
+
+        # Transform to API format
+        nodes = [
             ConceptNode(
-                name=concept["name"],
-                type=concept["labels"][0] if concept["labels"] else "Concept",
-                description=concept.get("description"),
-                properties={}
+                name=node["name"],
+                type=node["labels"][0] if node["labels"] else "Concept",
+                description=node.get("description"),
+                properties=node.get("properties", {})
             )
-            for concept in concepts
+            for node in graph_data["nodes"]
         ]
+
+        edges = [
+            Relationship(
+                source=rel["source"],
+                target=rel["target"],
+                type=rel["type"],
+                properties=rel.get("properties", {})
+            )
+            for rel in graph_data["relationships"]
+        ]
+
+        return GraphData(nodes=nodes, edges=edges)
     except Exception as e:
-        logger.error(f"Error listing concepts: {str(e)}")
+        logger.error(f"Error getting graph data: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

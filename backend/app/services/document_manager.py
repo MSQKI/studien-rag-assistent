@@ -20,9 +20,9 @@ class DocumentManager:
 
     def __init__(self):
         self.settings = get_settings()
-        self.chroma_client = chromadb.PersistentClient(path=str(self.settings.chroma_db_path))
+        self.chroma_client = chromadb.PersistentClient(path=str(self.settings.chroma_persist_dir))
         self.collection = self.chroma_client.get_or_create_collection(
-            name=self.settings.chroma_collection_name
+            name=self.settings.collection_name
         )
 
     def _generate_document_id(self, filename: str) -> str:

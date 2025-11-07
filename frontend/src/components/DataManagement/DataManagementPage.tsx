@@ -78,6 +78,19 @@ const DataManagementPage: React.FC = () => {
     },
   });
 
+  // Clear All Flashcards Mutation
+  const clearAllFlashcardsMutation = useMutation({
+    mutationFn: () => flashcardsAPI.clearAll(),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['flashcards'] });
+      queryClient.invalidateQueries({ queryKey: ['flashcardStats'] });
+      alert(`Alle Karteikarten erfolgreich gelöscht (${data.deleted_count} Karten)`);
+    },
+    onError: (error) => {
+      alert(`Fehler beim Löschen: ${error}`);
+    },
+  });
+
   const handleDeleteDocument = (doc_id: string, filename: string) => {
     if (confirm(`Dokument "${filename}" wirklich löschen?`)) {
       deleteDocumentMutation.mutate(doc_id);
@@ -108,6 +121,12 @@ const DataManagementPage: React.FC = () => {
   const handleClearGraph = () => {
     if (confirm('ACHTUNG: Alle Graph-Daten werden gelöscht. Fortfahren?')) {
       clearGraphMutation.mutate();
+    }
+  };
+
+  const handleClearAllFlashcards = () => {
+    if (confirm('⚠️ ACHTUNG: Alle Karteikarten und ihr Lernfortschritt werden unwiderruflich gelöscht!\n\nDiese Aktion kann NICHT rückgängig gemacht werden.\n\nWirklich ALLE Karteikarten löschen?')) {
+      clearAllFlashcardsMutation.mutate();
     }
   };
 
@@ -204,7 +223,20 @@ const DataManagementPage: React.FC = () => {
       {/* Flashcards Tab */}
       {activeTab === 'flashcards' && (
         <div className="card">
-          <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '16px' }}>Karteikarten</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: '600', margin: 0 }}>Karteikarten</h2>
+            {flashcardsData && flashcardsData.length > 0 && (
+              <button
+                className="btn btn-danger"
+                onClick={handleClearAllFlashcards}
+                disabled={clearAllFlashcardsMutation.isPending}
+                title="Alle Karteikarten unwiderruflich löschen"
+              >
+                <Trash2 size={18} />
+                Alle löschen ({flashcardsData.length})
+              </button>
+            )}
+          </div>
           {flashcardsLoading ? (
             <p>Lade...</p>
           ) : flashcardsData?.length === 0 ? (

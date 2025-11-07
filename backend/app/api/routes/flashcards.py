@@ -185,6 +185,33 @@ async def update_flashcard(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.delete("/clear-all")
+async def clear_all_flashcards(
+    manager: FlashcardManager = Depends(get_flashcard_manager)
+):
+    """
+    Delete ALL flashcards from the database.
+
+    ⚠️ WARNING: This action cannot be undone!
+
+    Args:
+        manager: Flashcard manager
+
+    Returns:
+        Confirmation message with number of deleted flashcards
+    """
+    try:
+        count = manager.delete_all_flashcards()
+        logger.warning(f"Deleted all flashcards: {count} cards removed")
+        return {
+            "message": f"Successfully deleted all flashcards",
+            "deleted_count": count
+        }
+    except Exception as e:
+        logger.error(f"Error deleting all flashcards: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.delete("/{flashcard_id}")
 async def delete_flashcard(
     flashcard_id: str,
@@ -215,7 +242,7 @@ async def delete_flashcard(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/next/due", response_model=Flashcard)
+@router.get("/next/due", response_model=Flashcard | None)
 async def get_next_flashcard(
     subject: str | None = Query(None, description="Filter by subject"),
     manager: FlashcardManager = Depends(get_flashcard_manager)
@@ -228,15 +255,13 @@ async def get_next_flashcard(
         manager: Flashcard manager
 
     Returns:
-        Next flashcard to review
+        Next flashcard to review or None if no cards are due
     """
     try:
         card = manager.get_next_due_flashcard(subject=subject)
         if not card:
-            raise HTTPException(status_code=404, detail="No flashcards due for review")
+            return None  # Return None instead of 404 for better UX
         return Flashcard(**card)
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error getting next flashcard: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

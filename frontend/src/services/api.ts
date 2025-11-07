@@ -60,7 +60,7 @@ export const flashcardsAPI = {
   },
   getNext: async (subject?: string) => {
     const response = await api.get('/flashcards/next/due', { params: { subject } });
-    return response.data;
+    return response.data; // Can be null if no cards due
   },
   recordAnswer: async (flashcard_id: string, correct: boolean, time_spent_seconds?: number) => {
     const response = await api.post('/flashcards/answer', {
@@ -72,6 +72,10 @@ export const flashcardsAPI = {
   },
   getStats: async () => {
     const response = await api.get('/flashcards/stats/overview');
+    return response.data;
+  },
+  clearAll: async () => {
+    const response = await api.delete('/flashcards/clear-all');
     return response.data;
   },
 };

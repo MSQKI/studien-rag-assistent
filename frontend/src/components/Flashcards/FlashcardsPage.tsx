@@ -17,6 +17,7 @@ const FlashcardsPage: React.FC = () => {
   const { data: currentCard, refetch, isLoading } = useQuery({
     queryKey: ['nextFlashcard'],
     queryFn: () => flashcardsAPI.getNext(),
+    retry: false, // Don't retry on 404
   });
 
   const answerMutation = useMutation({

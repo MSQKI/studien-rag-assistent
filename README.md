@@ -1,309 +1,418 @@
-# 📚 Studien-RAG-Assistent
+# 📚 Studien-RAG-Assistent v2.0
 
-Ein state-of-the-art RAG (Retrieval-Augmented Generation) System für Studierende zum intelligenten Durchsuchen und Befragen von Vorlesungsunterlagen mit automatischen Quellenangaben.
+**Deine persönliche KI-gestützte Lernplattform**
 
-## 🎯 Features
+Lade deine Vorlesungsskripte hoch und:
+- 🤖 Stelle Fragen zu deinen Dokumenten (RAG Chat)
+- 📇 Lerne mit intelligenten Karteikarten (Spaced Repetition)
+- 🕸️ Visualisiere Konzepte im Knowledge Graph
+- 📊 Verwalte all deine Lerndaten
 
-- **PDF-Verarbeitung**: Automatische Verarbeitung von Vorlesungs-PDFs mit intelligenter Chunking-Strategie
-- **Intelligente Suche**: Semantische Suche über alle hochgeladenen Dokumente mit ChromaDB
-- **Chat-Interface**: Konversationsbasierte Interaktion mit Kontext-Verständnis
-- **Quellenangaben**: Automatische Quellenangaben mit Seitenzahlen für jede Antwort
-- **Batch Processing**: Effiziente Verarbeitung mehrerer Dokumente gleichzeitig
-- **Docker Support**: Einfaches Deployment mit Docker und docker-compose
-- **Persistente Speicherung**: Alle Dokumente werden persistent in ChromaDB gespeichert
+## ✨ Hauptfeatures
 
-## 🏗️ Technischer Stack
+### 🤖 RAG Chat
+- Intelligentes Frage-Antwort-System basierend auf hochgeladenen Dokumenten
+- **OpenAI GPT-4o-mini** für präzise Antworten
+- Kontextuelle Antworten mit **automatischen Quellenangaben**
+- **ChromaDB Vector Store** für semantische Suche
+- Persistente Speicherung aller Dokumente
+- **🎤 Voice-Eingabe**: Fragen per Sprache stellen (Web Speech API)
+- **🔊 Text-to-Speech**: Antworten automatisch vorlesen lassen
 
-- **Python 3.11+**
-- **LangChain**: RAG-Pipeline und Conversation Management
-- **ChromaDB**: Lokale, persistente Vektordatenbank
-- **OpenAI API**:
-  - `gpt-4o-mini` für Chat-Antworten
-  - `text-embedding-3-small` für Embeddings
-- **Streamlit**: Modernes Web-Interface
-- **Docker**: Containerisierung für einfaches Deployment
+### 📇 Karteikarten mit Spaced Repetition
+- **Automatische Karteikartenerstellung** aus Dokumenten
+- **SM-2 Algorithm** für optimale Wiederholungsintervalle
+- Schwierigkeitsanpassung basierend auf Lernfortschritt
+- **Vollständige CRUD-Operationen**: Erstellen, Bearbeiten, Löschen
+- **Alle Karteikarten löschen**: Mit Bestätigungsdialog
+- Detaillierte Statistiken: Genauigkeit, Streak, Fällige Karten
 
-## 📦 Installation
+### 🕸️ Knowledge Graph
+- **Automatische Konzeptextraktion** mit OpenAI aus Dokumenten
+- **Neo4j Graph Database** für Beziehungen zwischen Konzepten
+- **Interaktive Cytoscape.js Visualisierung** mit allen extrahierten Konzepten
+- Zoom, Pan, Such- und Filterfunktionen
+- Konzept-Details beim Klicken auf Nodes
+- **Visualisierungstool**: Zeigt "big picture" Zusammenhänge (nicht direkt in RAG-Queries genutzt)
+- **Path Finding**: Entdecke Verbindungen zwischen Konzepten
+
+### 📊 Datenverwaltung
+- **Dokumenten-Management**: Upload, Anzeigen, Löschen
+- **Karteikarten-Editor**: Inline-Bearbeitung aller Karten
+- **Graph-Verwaltung**: Statistiken und Löschfunktionen
+- Vollständige **CRUD für alle Datentypen**
+
+### ⚡ Performance & UX
+- **React Query Caching**: 5 min fresh, 10 min GC
+- **Optimierte API-Aufrufe** mit intelligentem Retry
+- **Persistente Docker Volumes** für Neo4j, ChromaDB
+- **Responsive Design** für Desktop & Tablet
+- **Playwright E2E Tests** für Qualitätssicherung
+
+## 🏗️ Architektur
+
+```
+┌──────────────────────────────────────────────────────────┐
+│              React Frontend (Port 3000)                   │
+│     React 18 + TypeScript + Vite + React Query          │
+│  Dashboard │ RAG │ Flashcards │ Graph │ Data Mgmt       │
+└──────────────────┬───────────────────────────────────────┘
+                   │ REST API (axios)
+                   ▼
+┌──────────────────────────────────────────────────────────┐
+│            FastAPI Backend (Port 8000)                   │
+│        Python 3.11 + Pydantic + Async/Await             │
+│  /rag │ /flashcards │ /graph │ /documents               │
+└──┬──────────┬──────────┬──────────────────────────────────┘
+   │          │          │
+   │          │          │
+   ▼          ▼          ▼
+┌─────┐   ┌────────┐   ┌──────────┐   ┌─────────┐
+│Neo4j│   │ChromaDB│   │PostgreSQL│   │ OpenAI  │
+│Graph│   │ Vector │   │Flashcards│   │   API   │
+│ DB  │   │ Store  │   │    DB    │   │         │
+│7687 │   │ Local  │   │   5432   │   │GPT-4o   │
+│7474 │   │Persist │   │          │   │  mini   │
+└─────┘   └────────┘   └──────────┘   └─────────┘
+```
+
+### Legacy Support
+- **Streamlit UI (Port 8501)**: Original RAG-Interface für Kompatibilität
+
+## 📦 Installation & Start
 
 ### Voraussetzungen
+- **Docker** und **Docker Compose** installiert
+- **OpenAI API Key** ([hier erhalten](https://platform.openai.com/api-keys))
+- Windows, macOS oder Linux
 
-- Python 3.11 oder höher
-- OpenAI API Key ([hier erhalten](https://platform.openai.com/api-keys))
-- Optional: Docker und docker-compose für Container-Deployment
+### 🚀 Schnellstart (3 Schritte - 5 Minuten)
 
-### Lokale Installation
+#### Schritt 1: Repository herunterladen
+```bash
+git clone <repository-url>
+cd studien-rag-assistent
+```
 
-1. **Repository klonen:**
+#### Schritt 2: OpenAI API Key konfigurieren
+1. Hol dir einen API Key von https://platform.openai.com/api-keys
+2. Erstelle eine `.env` Datei im Hauptverzeichnis:
    ```bash
-   git clone <repository-url>
-   cd studien-rag-assistent
-   ```
-
-2. **Virtuelle Umgebung erstellen:**
-   ```bash
-   python -m venv .venv
-
    # Windows
-   .venv\Scripts\activate
+   copy .env.example .env
+   notepad .env
 
    # macOS/Linux
-   source .venv/bin/activate
-   ```
-
-3. **Dependencies installieren:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Umgebungsvariablen konfigurieren:**
-   ```bash
-   # .env Datei aus Vorlage erstellen
    cp .env.example .env
-
-   # .env Datei bearbeiten und OpenAI API Key eintragen
+   nano .env
+   ```
+3. Füge deinen API Key ein:
+   ```
+   OPENAI_API_KEY=sk-...dein-key-hier...
    ```
 
-5. **Anwendung starten:**
-   ```bash
-   python run.py
-   ```
+#### Schritt 3: Starten!
+```bash
+# Windows
+start.bat
 
-   Die Anwendung ist dann unter http://localhost:8501 verfügbar.
+# macOS/Linux
+./start.sh
+```
 
-### Docker Installation
+**Das war's!** Die Plattform läuft jetzt auf http://localhost:3000
 
-1. **Docker Image bauen und starten:**
-   ```bash
-   cd docker
-   docker-compose up -d
-   ```
+#### Stoppen
+```bash
+# Windows
+stop.bat
 
-2. **Logs anzeigen:**
-   ```bash
-   docker-compose logs -f
-   ```
+# macOS/Linux
+./stop.sh
+```
 
-3. **Anwendung stoppen:**
-   ```bash
-   docker-compose down
-   ```
+> **Hinweis**: Beim ersten Start dauert es 1-2 Minuten bis alle Services bereit sind. Deine Daten bleiben auch nach dem Stoppen erhalten.
 
-Die Anwendung ist dann unter http://localhost:8501 verfügbar.
+### Lokale Entwicklung
 
-## 🚀 Nutzung
+#### Backend
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
 
-### 1. Dokumente hochladen
+#### Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-1. Klicke auf "PDF-Dateien auswählen" in der Seitenleiste
-2. Wähle eine oder mehrere PDF-Dateien aus deinen Vorlesungsunterlagen
-3. Klicke auf "Dokumente verarbeiten"
-4. Warte, bis die Verarbeitung abgeschlossen ist
+## 📖 Wie benutze ich die Plattform?
 
-### 2. Fragen stellen
+### 1. Dokumente hochladen 📄
+- Gehe zu **"Datenverwaltung"** → Tab **"Dokumente"**
+- Klicke auf **"Dokument hochladen"**
+- Wähle deine PDF-Vorlesungsskripte aus
+- Warte ~30 Sekunden pro Dokument (automatische Verarbeitung)
+- ✅ Fertig! Daten sind jetzt in RAG, Karteikarten & Graph verfügbar
 
-1. Gib deine Frage in das Chat-Eingabefeld ein
-2. Drücke Enter oder klicke auf das Senden-Symbol
-3. Die KI analysiert deine Dokumente und gibt eine Antwort mit Quellenangaben
+### 2. Fragen stellen 💬
+- Gehe zu **"RAG Chat"**
+- Stelle Fragen wie: *"Erkläre mir [Konzept]"* oder *"Was steht über [Thema]?"*
+- **🎤 NEU: Spracheingabe!** Klicke das Mikrofon-Symbol und sprich deine Frage
+- Erhalte Antworten mit **Quellenangaben** (Seite + Dokument)
+- **🔊 NEU: Antwort anhören!** Die Antwort wird automatisch vorgelesen
+- Chatte natürlich - die KI versteht Kontext!
 
-### 3. Quellenangaben prüfen
+### 3. Mit Karteikarten lernen 🎴
+- Gehe zu **"Karteikarten"**
+- Siehe deine Stats: Gesamt, Fällig heute, Genauigkeit
+- Klicke Karte zum Umdrehen
+- Bewerte dich ehrlich: **"Ja"** = gewusst, **"Nein"** = nicht gewusst
+- Das System merkt sich automatisch wann du wiederholen solltest!
 
-- Jede Antwort enthält automatische Quellenangaben
-- Klicke auf "Quellenangaben" um Details zu sehen:
-  - Dateiname
-  - Seitenzahl
-  - Relevanter Textausschnitt
+### 4. Knowledge Graph erkunden 🕸️
+- Gehe zu **"Knowledge Graph"**
+- Siehst alle Konzepte aus deinen Dokumenten visualisiert
+- **Zoom**: Buttons oder Mausrad
+- **Suche**: Suchfeld oben rechts
+- **Klicke Nodes**: Für Details und Beschreibung
+- **Verbindungen**: Zeigen Beziehungen zwischen Konzepten
 
-### 4. Dokumente verwalten
+### 5. Daten bearbeiten ✏️
+- Gehe zu **"Datenverwaltung"**
+- **Dokumente**: Alle Docs anzeigen & löschen
+- **Karteikarten**: Inline bearbeiten (Frage/Antwort ändern), einzeln löschen, **alle löschen**
+- **Graph**: Statistiken sehen, kompletten Graph leeren
 
-- Lösche einzelne Dokumente mit dem 🗑️ Symbol
-- Lösche die gesamte Konversation mit "Konversation löschen"
-- Setze alles zurück mit "Alles zurücksetzen"
+> **Tipp**: Alle Änderungen werden automatisch gespeichert und bleiben auch nach Neustart erhalten!
 
 ## ⚙️ Konfiguration
 
-Die Anwendung kann über die `.env` Datei konfiguriert werden:
+Hauptkonfiguration in `.env`:
 
 ```bash
-# Erforderlich
-OPENAI_API_KEY=your_api_key_here
+# OpenAI (Erforderlich)
+OPENAI_API_KEY=sk-...your-key-here
 
-# Optional - Modell-Konfiguration
-LLM_MODEL=gpt-4o-mini                    # Chat-Modell
-EMBEDDING_MODEL=text-embedding-3-small   # Embedding-Modell
-TEMPERATURE=0.2                          # Kreativität (0.0-2.0)
-MAX_TOKENS=2000                          # Max. Antwortlänge
+# LLM Settings
+LLM_MODEL=gpt-4o-mini
+EMBEDDING_MODEL=text-embedding-3-small
+TEMPERATURE=0.2
+MAX_TOKENS=2000
 
-# Optional - Chunking-Konfiguration
-CHUNK_SIZE=1000                          # Chunk-Größe in Zeichen
-CHUNK_OVERLAP=200                        # Überlappung zwischen Chunks
+# Document Processing
+CHUNK_SIZE=1000
+CHUNK_OVERLAP=200
+RETRIEVAL_K=4
 
-# Optional - Storage
-CHROMA_PERSIST_DIR=./data/chroma_db      # ChromaDB Speicherort
-UPLOAD_DIR=./data/uploads                # Upload-Verzeichnis
+# Neo4j
+NEO4J_URI=bolt://neo4j:7687
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=studyplatform2024
 
-# Optional - Retrieval
-RETRIEVAL_K=4                            # Anzahl relevanter Dokumente
+# PostgreSQL
+DATABASE_URL=postgresql://user:password@postgres:5432/studydb
 
-# Optional - Anwendung
-LOG_LEVEL=INFO                           # Logging-Level
-BATCH_SIZE=10                            # Batch-Größe für Processing
+# Paths
+CHROMA_PERSIST_DIR=./data/chroma_db
+UPLOAD_DIR=./data/uploads
 ```
 
 ## 📁 Projektstruktur
 
 ```
 studien-rag-assistent/
-├── .claude/                  # Claude Code Konfiguration
-│   ├── CLAUDE.md            # Entwicklungsrichtlinien
-│   └── settings.json        # Editor-Einstellungen
-├── docker/                   # Docker-Konfiguration
-│   ├── Dockerfile           # Container-Definition
-│   └── docker-compose.yml   # Service-Orchestrierung
-├── src/                      # Quellcode
-│   ├── config.py            # Zentrale Konfiguration
-│   ├── document_processor.py # PDF-Verarbeitung
-│   ├── vector_store.py      # ChromaDB Integration
-│   ├── rag_chain.py         # RAG-Pipeline
-│   └── ui.py                # Streamlit Interface
-├── data/                     # Daten (persistent)
-│   ├── uploads/             # Hochgeladene PDFs
-│   └── chroma_db/           # Vektordatenbank
-├── tests/                    # Unit & Integration Tests
-├── requirements.txt          # Python Dependencies
-├── .env.example             # Umgebungsvariablen-Vorlage
-├── run.py                   # Start-Script
-└── README.md                # Diese Datei
+├── frontend/                 # React Frontend
+│   ├── src/
+│   │   ├── components/       # React Components
+│   │   │   ├── Dashboard/    # Dashboard Page
+│   │   │   ├── RAG/          # RAG Chat Page
+│   │   │   ├── Flashcards/   # Flashcards Page
+│   │   │   ├── Graph/        # Knowledge Graph Page
+│   │   │   └── DataManagement/ # Data Mgmt Page
+│   │   ├── services/         # API Client (axios)
+│   │   └── App.tsx           # Main App with Routing
+│   ├── tests/                # Playwright E2E Tests
+│   ├── package.json
+│   └── Dockerfile
+├── backend/                  # FastAPI Backend
+│   ├── app/
+│   │   ├── api/routes/       # API Endpoints
+│   │   │   ├── rag.py
+│   │   │   ├── flashcards.py
+│   │   │   ├── graph.py
+│   │   │   └── documents.py
+│   │   ├── services/         # Business Logic
+│   │   │   ├── rag/          # RAG Chain, Vector Store
+│   │   │   ├── flashcards/   # Spaced Repetition
+│   │   │   └── graph/        # Neo4j, Entity Extraction
+│   │   ├── models/           # Pydantic Models
+│   │   └── main.py           # FastAPI App
+│   └── requirements.txt
+├── docker/                   # Docker Configs
+│   ├── Dockerfile.backend
+│   ├── Dockerfile
+│   ├── docker-compose.yml     # Streamlit only
+│   └── docker-compose-full.yml # Full stack
+├── data/                     # Persistent Data
+│   ├── chroma_db/            # Vector DB (mounted)
+│   └── uploads/              # Uploaded PDFs
+└── .env                      # Environment Variables
 ```
 
 ## 🧪 Tests
 
-Tests ausführen:
-
+### Playwright E2E Tests
 ```bash
-# Alle Tests
-pytest
-
-# Mit Coverage
-pytest --cov=src --cov-report=html
-
-# Bestimmte Test-Datei
-pytest tests/test_document_processor.py
+cd frontend
+npm install
+npx playwright test                    # Run all tests
+npx playwright test --headed          # With browser
+npx playwright test graph.spec.ts     # Specific test
+npx playwright show-report            # Show HTML report
 ```
 
-## 🔧 Entwicklung
-
-### Code Quality Tools
-
+### Backend Tests
 ```bash
-# Code formatieren
-black src/ tests/
-
-# Imports sortieren
-isort src/ tests/
-
-# Linting
-flake8 src/ tests/
-
-# Type checking
-mypy src/
+cd backend
+pytest                                # All tests
+pytest --cov=app --cov-report=html    # With coverage
 ```
 
-### Best Practices
+## 🔧 API Dokumentation
 
-- **Type Hints**: Verwende Type Hints in allen Funktionen
-- **Docstrings**: Dokumentiere alle öffentlichen Funktionen
-- **Error Handling**: Implementiere proper try-except Blöcke
-- **Logging**: Nutze logging statt print statements
-- **Tests**: Schreibe Tests für neue Features
+Backend API Docs (automatisch generiert):
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
 
-## 📊 Architektur
+### Wichtige Endpoints
 
+#### RAG
 ```
-User Interface (Streamlit)
-    ↓
-RAG Chain (LangChain)
-    ↓
-Vector Store (ChromaDB) ←→ Document Processor
-    ↓
-OpenAI API (Embeddings & LLM)
+GET  /api/rag/stats         # RAG Statistiken
+POST /api/rag/query         # Frage stellen
+POST /api/rag/clear         # RAG Cache leeren
 ```
 
-### Komponenten
+#### Flashcards
+```
+GET    /api/flashcards                 # Liste alle Karten
+POST   /api/flashcards                 # Neue Karte erstellen
+GET    /api/flashcards/{id}            # Eine Karte abrufen
+PUT    /api/flashcards/{id}            # Karte bearbeiten
+DELETE /api/flashcards/{id}            # Karte löschen
+GET    /api/flashcards/next/due        # Nächste fällige Karte
+POST   /api/flashcards/answer          # Antwort aufzeichnen
+GET    /api/flashcards/stats/overview  # Statistiken
+```
 
-1. **Document Processor**:
-   - Lädt PDF-Dateien
-   - Extrahiert Text mit PyPDFLoader
-   - Chunked Text mit RecursiveCharacterTextSplitter
+#### Graph
+```
+GET    /api/graph/concepts      # Alle Konzepte
+GET    /api/graph/stats         # Graph Statistiken
+DELETE /api/graph/clear         # Graph leeren
+```
 
-2. **Vector Store**:
-   - Speichert Embeddings in ChromaDB
-   - Implementiert Similarity Search
-   - Verwaltet Collections
-
-3. **RAG Chain**:
-   - Conversational Retrieval Chain
-   - Conversation Memory
-   - Custom Prompts für deutsche Antworten
-
-4. **UI**:
-   - File Upload & Management
-   - Chat Interface
-   - Source Citations Display
+#### Documents
+```
+GET    /api/documents           # Liste alle Dokumente
+POST   /api/documents/upload    # Dokument hochladen
+DELETE /api/documents/{id}      # Dokument löschen
+```
 
 ## 🐛 Troubleshooting
 
-### Problem: "OpenAI API key not found"
-**Lösung**: Überprüfe, ob die `.env` Datei existiert und `OPENAI_API_KEY` gesetzt ist.
-
-### Problem: "ChromaDB collection error"
-**Lösung**: Lösche das `data/chroma_db` Verzeichnis und starte neu.
-
-### Problem: "PDF kann nicht geladen werden"
-**Lösung**: Stelle sicher, dass die PDF-Datei nicht beschädigt ist und nicht passwortgeschützt.
-
-### Problem: Docker Container startet nicht
-**Lösung**:
+### Docker Container starten nicht
 ```bash
-docker-compose logs
-docker-compose down -v
-docker-compose up --build
+docker-compose -f docker-compose-full.yml logs
+docker-compose -f docker-compose-full.yml down -v
+docker-compose -f docker-compose-full.yml up --build -d
 ```
+
+### Frontend zeigt "Failed to fetch"
+- Prüfe ob Backend läuft: `curl http://localhost:8000/health`
+- Prüfe Browser Console für CORS-Fehler
+- Stelle sicher, dass `VITE_API_URL` korrekt ist
+
+### Neo4j Connection Error
+- Warte 30s nach `docker-compose up` (Neo4j braucht Zeit zum Starten)
+- Prüfe Credentials: neo4j / studyplatform2024
+- Öffne http://localhost:7474 um Verbindung zu testen
+
+### Karteikarten zeigen "404 Not Found"
+- Normal wenn keine Karten fällig sind!
+- Prüfe "Gesamt" Statistik - wenn 0, erstelle zuerst Karten
+
+### Graph zeigt nichts
+- Lade zuerst Dokumente hoch (automatische Konzeptextraktion)
+- Warte auf Verarbeitung (kann 30-60s dauern)
+- Prüfe `/api/graph/stats` - sollte `concepts > 0` zeigen
+
+## 🚀 Features & Improvements
+
+### Neu in v2.0 (Aktuell - November 2025)
+- ✅ **Vollständiges React Frontend** statt nur Streamlit
+- ✅ **Knowledge Graph Visualisierung** mit Cytoscape.js (inkl. Beziehungen)
+- ✅ **Spaced Repetition System** für Karteikarten (SM-2 Algorithm)
+- ✅ **Vollständige CRUD-Operationen** für alle Datentypen
+- ✅ **Alle Karteikarten löschen** mit Bestätigungsdialog ⚠️
+- ✅ **React Query Caching** für Performance (5min fresh)
+- ✅ **Playwright E2E Tests** für Qualitätssicherung
+- ✅ **Modern UI/UX** mit Lucide Icons
+- ✅ **Persistent Docker Volumes** (Daten bleiben erhalten!)
+- ✅ **🎤 Voice im RAG Chat**: Spracheingabe & Text-to-Speech
+- ✅ **Lokale Installation**: Alles läuft auf deinem PC
+- ✅ **Ausführliche Tests**: Alle Features getestet und funktionsfähig
+
+### Geplante Features
+- 🔄 Automatische Flashcard-Generierung aus RAG-Antworten
+- 🔄 Multi-Tenant Support mit User Authentication
+- 🔄 Export/Import von Karteikarten & Graphen
+- 🔄 Erweiterte Voice-Features mit OpenAI Realtime API
+- 🔄 Mobile App (React Native)
 
 ## 🔒 Sicherheit
 
-- **API Keys**: Niemals API Keys in Git committen
-- **Secrets**: Verwende `.env` für sensitive Daten
-- **Input Validation**: PDFs werden auf Gültigkeit geprüft
-- **Error Handling**: Graceful degradation bei Fehlern
+- ✅ API Keys niemals in Git committen
+- ✅ `.env` für alle Secrets verwenden
+- ✅ Input Validation für alle Uploads
+- ✅ Error Handling ohne Stacktrace-Leaks
+- ⚠️ **Aktuell keine Authentifizierung** - nur für lokale Nutzung!
 
 ## 📝 Lizenz
 
-Dieses Projekt ist unter der MIT Lizenz lizenziert.
+MIT License - siehe LICENSE Datei.
 
 ## 🤝 Contributing
 
-Contributions sind willkommen! Bitte:
+Beiträge sind willkommen!
 
 1. Fork das Repository
-2. Erstelle einen Feature Branch
-3. Committe deine Änderungen
-4. Push zum Branch
+2. Erstelle einen Feature Branch (`git checkout -b feature/amazing-feature`)
+3. Committe Änderungen (`git commit -m 'Add amazing feature'`)
+4. Push zum Branch (`git push origin feature/amazing-feature`)
 5. Öffne einen Pull Request
-
-## 📧 Support
-
-Bei Fragen oder Problemen:
-- Öffne ein Issue im Repository
-- Kontaktiere das Entwicklungsteam
 
 ## 🎓 Credits
 
 Entwickelt mit:
+- [React 18](https://react.dev/) + [Vite](https://vitejs.dev/)
+- [FastAPI](https://fastapi.tiangolo.com/)
 - [LangChain](https://github.com/langchain-ai/langchain)
+- [Neo4j](https://neo4j.com/)
 - [ChromaDB](https://github.com/chroma-core/chroma)
-- [Streamlit](https://streamlit.io/)
 - [OpenAI API](https://openai.com/)
+- [Cytoscape.js](https://js.cytoscape.org/)
+- [React Query](https://tanstack.com/query/latest)
+- [Playwright](https://playwright.dev/)
 
 ---
 
-**Made with ❤️ for students**
+**Made with ❤️ by Claude & Eric for students everywhere**
+
+📧 Bei Fragen: Issue im Repository öffnen

@@ -71,3 +71,6 @@ dmypy.json
 
 # Docker
 docker-compose.override.yml
+node_modules/
+*.db
+test-results/

@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Send, Loader2, Upload, Trash2, MessageSquare } from 'lucide-react';
+import { Send, Loader2, Upload, Trash2, MessageSquare, Mic, Volume2, VolumeX } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 import { ragAPI, documentsAPI } from '../../services/api';
+import { useVoiceInput } from '../../hooks/useVoiceInput';
+import { useTextToSpeech } from '../../hooks/useTextToSpeech';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -17,6 +19,10 @@ const RAGPage: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Voice functionality
+  const { isListening, transcript, startListening, stopListening, resetTranscript, isSupported: voiceSupported } = useVoiceInput();
+  const { speak, stop, isSpeaking } = useTextToSpeech();
+
   const queryMutation = useMutation({
     mutationFn: (question: string) => ragAPI.query(question),
     onSuccess: (data) => {
@@ -28,6 +34,9 @@ const RAGPage: React.FC = () => {
           sources: data.sources,
         },
       ]);
+      // Auto-speak the response
+      if (isSpeaking) stop(); // Stop any previous speech
+      speak(data.answer);
     },
   });
 
@@ -67,9 +76,33 @@ const RAGPage: React.FC = () => {
     }
   };
 
+  // Update input when voice transcript changes
+  useEffect(() => {
+    if (transcript) {
+      setInput(transcript);
+      resetTranscript();
+    }
+  }, [transcript, resetTranscript]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const handleVoiceToggle = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  };
+
+  const toggleSpeech = (text: string) => {
+    if (isSpeaking) {
+      stop();
+    } else {
+      speak(text);
+    }
+  };
 
   return (
     <div>
@@ -113,7 +146,26 @@ const RAGPage: React.FC = () => {
               messages.map((msg, idx) => (
                 <div key={idx} className={`chat-message ${msg.role}`}>
                   <div className="message-content">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1 }}>
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
+                      {msg.role === 'assistant' && (
+                        <button
+                          onClick={() => toggleSpeech(msg.content)}
+                          className="btn btn-secondary"
+                          style={{
+                            padding: '8px',
+                            minWidth: 'auto',
+                            marginLeft: '12px',
+                            opacity: 0.7,
+                          }}
+                          title={isSpeaking ? "Vorlesen stoppen" : "Antwort vorlesen"}
+                        >
+                          {isSpeaking ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                        </button>
+                      )}
+                    </div>
 
                     {msg.sources && msg.sources.length > 0 && (
                       <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #eee' }}>
@@ -147,11 +199,26 @@ const RAGPage: React.FC = () => {
             <input
               type="text"
               className="input chat-input"
-              placeholder="Frage eingeben..."
+              placeholder={isListening ? "Sprechen Sie jetzt..." : "Frage eingeben..."}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               disabled={queryMutation.isPending}
             />
+            {voiceSupported && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleVoiceToggle}
+                disabled={queryMutation.isPending}
+                style={{
+                  backgroundColor: isListening ? '#ef4444' : '#6b7280',
+                  animation: isListening ? 'pulse 1.5s infinite' : 'none',
+                }}
+                title={isListening ? "Aufnahme stoppen" : "Spracheingabe starten"}
+              >
+                <Mic size={18} />
+              </button>
+            )}
             <button
               type="submit"
               className="btn btn-primary"

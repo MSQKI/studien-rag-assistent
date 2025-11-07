@@ -284,6 +284,63 @@ class GraphBuilder:
 
             return [dict(record) for record in result]
 
+    def get_graph_data(self, subject: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get complete graph data with nodes and relationships.
+
+        Args:
+            subject: Optional subject filter
+
+        Returns:
+            Dictionary with nodes and relationships
+        """
+        with self.driver.session(database=self.settings.neo4j_database) as session:
+            # Get all nodes
+            if subject:
+                node_query = """
+                MATCH (n)
+                WHERE n.subject = $subject OR NOT exists(n.subject)
+                RETURN n.name as name, n.description as description,
+                       labels(n) as labels, properties(n) as properties
+                ORDER BY n.name
+                """
+                nodes_result = session.run(node_query, subject=subject)
+            else:
+                node_query = """
+                MATCH (n)
+                RETURN n.name as name, n.description as description,
+                       labels(n) as labels, properties(n) as properties
+                ORDER BY n.name
+                """
+                nodes_result = session.run(node_query)
+
+            nodes = [dict(record) for record in nodes_result]
+
+            # Get all relationships
+            if subject:
+                rel_query = """
+                MATCH (s)-[r]->(t)
+                WHERE (s.subject = $subject OR NOT exists(s.subject))
+                  AND (t.subject = $subject OR NOT exists(t.subject))
+                RETURN s.name as source, t.name as target,
+                       type(r) as type, properties(r) as properties
+                """
+                rels_result = session.run(rel_query, subject=subject)
+            else:
+                rel_query = """
+                MATCH (s)-[r]->(t)
+                RETURN s.name as source, t.name as target,
+                       type(r) as type, properties(r) as properties
+                """
+                rels_result = session.run(rel_query)
+
+            relationships = [dict(record) for record in rels_result]
+
+            return {
+                "nodes": nodes,
+                "relationships": relationships
+            }
+
     def get_concept(self, name: str) -> Optional[Dict[str, Any]]:
         """
         Get a specific concept by name.
