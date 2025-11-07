@@ -8,13 +8,13 @@ import os
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
-import chromadb
 from chromadb.config import Settings as ChromaSettings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
 
 from app.config import get_settings
+from app.services.shared_chroma import get_chroma_client
 
 logger = logging.getLogger(__name__)
 
@@ -48,24 +48,17 @@ class VectorStore:
         return self._embeddings
 
     @property
-    def chroma_client(self) -> chromadb.PersistentClient:
+    def chroma_client(self):
         """
-        Lazy initialization of ChromaDB persistent client with telemetry disabled.
+        Get the shared ChromaDB persistent client.
 
         Returns:
             ChromaDB PersistentClient instance
         """
         if self._chroma_client is None:
-            # Create ChromaDB client with telemetry disabled
-            chroma_settings = ChromaSettings(
-                anonymized_telemetry=False,
-                allow_reset=True
-            )
-            self._chroma_client = chromadb.PersistentClient(
-                path=str(self.settings.chroma_persist_dir),
-                settings=chroma_settings
-            )
-            logger.info(f"Initialized ChromaDB PersistentClient at: {self.settings.chroma_persist_dir}")
+            # Use shared client to avoid multiple instances
+            self._chroma_client = get_chroma_client()
+            logger.info(f"Using shared ChromaDB client at: {self.settings.chroma_persist_dir}")
         return self._chroma_client
 
     @property

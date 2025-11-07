@@ -92,7 +92,14 @@ const FlashcardsPage: React.FC = () => {
           <p style={{ color: '#666', marginBottom: '20px' }}>
             Keine Karteikarten fällig. Komm später wieder!
           </p>
-          <button className="btn btn-primary" onClick={() => refetch()}>
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              queryClient.invalidateQueries({ queryKey: ['nextFlashcard'] });
+              queryClient.invalidateQueries({ queryKey: ['flashcardStats'] });
+              refetch();
+            }}
+          >
             <RefreshCw size={18} />
             Erneut prüfen
           </button>

@@ -10,9 +10,9 @@ from datetime import datetime
 from pathlib import Path
 
 from loguru import logger
-import chromadb
 
 from app.config import get_settings
+from app.services.shared_chroma import get_chroma_client
 
 
 class DocumentManager:
@@ -20,7 +20,7 @@ class DocumentManager:
 
     def __init__(self):
         self.settings = get_settings()
-        self.chroma_client = chromadb.PersistentClient(path=str(self.settings.chroma_persist_dir))
+        self.chroma_client = get_chroma_client()  # Use shared client
         self.collection = self.chroma_client.get_or_create_collection(
             name=self.settings.collection_name
         )
