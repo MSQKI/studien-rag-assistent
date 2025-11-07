@@ -13,8 +13,8 @@ from langchain.prompts import PromptTemplate
 from langchain_core.documents import Document
 from langchain_openai import ChatOpenAI
 
-from src.config import get_settings
-from src.vector_store import VectorStore
+from app.config import get_settings
+from app.services.rag.vector_store import VectorStore
 
 # Suppress LangChain deprecation warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="langchain")

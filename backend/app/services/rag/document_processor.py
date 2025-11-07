@@ -11,7 +11,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
 
-from src.config import get_settings
+from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 

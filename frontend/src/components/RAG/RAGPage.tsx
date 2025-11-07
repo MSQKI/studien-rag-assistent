@@ -1,0 +1,169 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { Send, Loader2, Upload, Trash2, MessageSquare } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+
+import { ragAPI, documentsAPI } from '../../services/api';
+
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+  sources?: any[];
+}
+
+const RAGPage: React.FC = () => {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const queryMutation = useMutation({
+    mutationFn: (question: string) => ragAPI.query(question),
+    onSuccess: (data) => {
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: data.answer,
+          sources: data.sources,
+        },
+      ]);
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || queryMutation.isPending) return;
+
+    const userMessage: Message = {
+      role: 'user',
+      content: input,
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    queryMutation.mutate(input);
+    setInput('');
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      await documentsAPI.upload(file);
+      alert(`${file.name} erfolgreich hochgeladen!`);
+    } catch (error) {
+      alert('Fehler beim Hochladen');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleClear = async () => {
+    if (confirm('Konversation löschen?')) {
+      await ragAPI.clear();
+      setMessages([]);
+    }
+  };
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div>
+          <h1 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '4px' }}>
+            RAG Chat
+          </h1>
+          <p style={{ color: '#666' }}>Befrage deine Dokumente</p>
+        </div>
+
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <label className="btn btn-secondary" style={{ cursor: 'pointer' }}>
+            <Upload size={18} />
+            {isUploading ? 'Lädt hoch...' : 'PDF hochladen'}
+            <input
+              type="file"
+              accept=".pdf"
+              onChange={handleFileUpload}
+              style={{ display: 'none' }}
+              disabled={isUploading}
+            />
+          </label>
+
+          <button className="btn btn-danger" onClick={handleClear}>
+            <Trash2 size={18} />
+            Löschen
+          </button>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="chat-container">
+          <div className="chat-messages">
+            {messages.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+                <MessageSquare size={48} style={{ margin: '0 auto 16px' }} />
+                <p>Stelle eine Frage zu deinen Dokumenten</p>
+              </div>
+            ) : (
+              messages.map((msg, idx) => (
+                <div key={idx} className={`chat-message ${msg.role}`}>
+                  <div className="message-content">
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+
+                    {msg.sources && msg.sources.length > 0 && (
+                      <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #eee' }}>
+                        <div style={{ fontSize: '12px', fontWeight: '600', marginBottom: '8px', opacity: 0.7 }}>
+                          QUELLEN:
+                        </div>
+                        {msg.sources.map((src, i) => (
+                          <div key={i} style={{ fontSize: '12px', marginBottom: '4px', opacity: 0.8 }}>
+                            📄 {src.file}, Seite {src.page}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+
+            {queryMutation.isPending && (
+              <div className="chat-message assistant">
+                <div className="message-content">
+                  <Loader2 className="spinner" size={20} />
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+
+          <form onSubmit={handleSubmit} className="chat-input-container">
+            <input
+              type="text"
+              className="input chat-input"
+              placeholder="Frage eingeben..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              disabled={queryMutation.isPending}
+            />
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={queryMutation.isPending || !input.trim()}
+            >
+              <Send size={18} />
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default RAGPage;

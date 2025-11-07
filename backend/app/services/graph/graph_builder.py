@@ -328,13 +328,61 @@ class GraphBuilder:
             result = session.run(query)
             return dict(result.single())
 
-    def delete_all(self) -> None:
+    def delete_by_document(self, document_id: str) -> Dict[str, int]:
         """
-        Delete all nodes and relationships (use with caution!).
+        Delete all nodes and relationships associated with a document.
+
+        Args:
+            document_id: Document ID
+
+        Returns:
+            Dictionary with deletion counts
         """
         with self.driver.session(database=self.settings.neo4j_database) as session:
+            # Count nodes before deletion
+            count_query = """
+            MATCH (n)
+            WHERE n.document_id = $document_id
+            RETURN count(n) as node_count
+            """
+            result = session.run(count_query, document_id=document_id)
+            nodes_deleted = result.single()["node_count"]
+
+            # Delete all nodes with this document_id (DETACH removes relationships)
+            delete_query = """
+            MATCH (n)
+            WHERE n.document_id = $document_id
+            DETACH DELETE n
+            """
+            session.run(delete_query, document_id=document_id)
+
+            logger.info(f"Deleted {nodes_deleted} nodes for document {document_id}")
+            return {
+                "nodes_deleted": nodes_deleted,
+                "relationships_deleted": 0  # Included in DETACH DELETE
+            }
+
+    def delete_all(self) -> Dict[str, int]:
+        """
+        Delete all nodes and relationships (use with caution!).
+
+        Returns:
+            Dictionary with deletion counts
+        """
+        with self.driver.session(database=self.settings.neo4j_database) as session:
+            # Count before deletion
+            count_query = "MATCH (n) RETURN count(n) as node_count"
+            result = session.run(count_query)
+            nodes_deleted = result.single()["node_count"]
+
+            # Delete all
             session.run("MATCH (n) DETACH DELETE n")
-            logger.warning("Deleted all graph data")
+            logger.warning(f"Deleted all graph data ({nodes_deleted} nodes)")
+
+            return {
+                "nodes_deleted": nodes_deleted,
+                "relationships_deleted": 0
+            }
 
 
 # Global graph builder instance

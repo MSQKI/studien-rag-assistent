@@ -465,6 +465,142 @@ class FlashcardManager:
             "total_reviews": total_reviews
         }
 
+    def update_flashcard(
+        self,
+        flashcard_id: str,
+        question: Optional[str] = None,
+        answer: Optional[str] = None,
+        difficulty: Optional[int] = None,
+        tags: Optional[List[str]] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Update a flashcard.
+
+        Args:
+            flashcard_id: Flashcard ID
+            question: Optional new question
+            answer: Optional new answer
+            difficulty: Optional new difficulty
+            tags: Optional new tags list
+
+        Returns:
+            Updated flashcard data or None if not found
+        """
+        # First check if flashcard exists
+        existing = self.get_flashcard(flashcard_id)
+        if not existing:
+            return None
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        # Build update query dynamically
+        updates = []
+        params = []
+
+        if question is not None:
+            updates.append("question = ?")
+            params.append(question)
+
+        if answer is not None:
+            updates.append("answer = ?")
+            params.append(answer)
+
+        if difficulty is not None:
+            updates.append("difficulty = ?")
+            params.append(difficulty)
+
+        if tags is not None:
+            updates.append("tags = ?")
+            params.append(",".join(tags))
+
+        if not updates:
+            conn.close()
+            return existing
+
+        params.append(flashcard_id)
+        query = f"UPDATE flashcards SET {', '.join(updates)} WHERE id = ?"
+
+        cursor.execute(query, params)
+        conn.commit()
+        conn.close()
+
+        logger.info(f"Updated flashcard: {flashcard_id}")
+        return self.get_flashcard(flashcard_id)
+
+    def delete_flashcard(self, flashcard_id: str) -> bool:
+        """
+        Delete a flashcard and its review history.
+
+        Args:
+            flashcard_id: Flashcard ID
+
+        Returns:
+            True if deleted, False if not found
+        """
+        # Check if exists
+        if not self.get_flashcard(flashcard_id):
+            return False
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        # Delete review history first (foreign key constraint)
+        cursor.execute("DELETE FROM review_history WHERE flashcard_id = ?", (flashcard_id,))
+
+        # Delete flashcard
+        cursor.execute("DELETE FROM flashcards WHERE id = ?", (flashcard_id,))
+
+        conn.commit()
+        deleted = cursor.rowcount > 0
+        conn.close()
+
+        if deleted:
+            logger.info(f"Deleted flashcard: {flashcard_id}")
+
+        return deleted
+
+    def delete_flashcards_by_document(self, document_id: str) -> int:
+        """
+        Delete all flashcards associated with a document.
+
+        Args:
+            document_id: Document ID
+
+        Returns:
+            Number of flashcards deleted
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        # Get flashcard IDs
+        cursor.execute("SELECT id FROM flashcards WHERE document_id = ?", (document_id,))
+        flashcard_ids = [row[0] for row in cursor.fetchall()]
+
+        if not flashcard_ids:
+            conn.close()
+            return 0
+
+        # Delete review history
+        placeholders = ",".join("?" * len(flashcard_ids))
+        cursor.execute(
+            f"DELETE FROM review_history WHERE flashcard_id IN ({placeholders})",
+            flashcard_ids
+        )
+
+        # Delete flashcards
+        cursor.execute(
+            f"DELETE FROM flashcards WHERE document_id = ?",
+            (document_id,)
+        )
+
+        count = cursor.rowcount
+        conn.commit()
+        conn.close()
+
+        logger.info(f"Deleted {count} flashcards for document: {document_id}")
+        return count
+
     def _row_to_dict(self, row: sqlite3.Row) -> Dict[str, Any]:
         """
         Convert database row to dictionary.

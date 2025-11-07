@@ -20,7 +20,13 @@
       "Bash(docker logs:*)",
       "Bash(curl:*)",
       "Bash(docker exec:*)",
-      "Bash(docker run:*)"
+      "Bash(docker run:*)",
+      "Bash(chmod:*)",
+      "Bash(docker --version:*)",
+      "Bash(test:*)",
+      "Bash(docker-compose:*)",
+      "Bash(docker pull:*)",
+      "Bash(docker kill:*)"
     ],
     "deny": [],
     "ask": []

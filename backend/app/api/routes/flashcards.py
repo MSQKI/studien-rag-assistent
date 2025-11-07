@@ -8,8 +8,11 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from loguru import logger
 
 from app.config import get_settings, Settings
+from app.api.dependencies import get_flashcard_manager
+from app.services.flashcards.flashcard_manager import FlashcardManager
 
 router = APIRouter()
 
@@ -59,7 +62,9 @@ class GenerateRequest(BaseModel):
 async def list_flashcards(
     subject: str | None = Query(None, description="Filter by subject"),
     tag: str | None = Query(None, description="Filter by tag"),
-    settings: Settings = Depends(get_settings)
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    manager: FlashcardManager = Depends(get_flashcard_manager)
 ):
     """
     List all flashcards with optional filters.
@@ -67,64 +72,86 @@ async def list_flashcards(
     Args:
         subject: Optional subject filter
         tag: Optional tag filter
-        settings: Application settings
+        limit: Maximum number to return
+        offset: Number to skip
+        manager: Flashcard manager
 
     Returns:
         List of flashcards
     """
-    # TODO: Implement flashcard listing from SQLite
-    return []
+    try:
+        cards = manager.list_flashcards(subject=subject, tag=tag, limit=limit, offset=offset)
+        return [Flashcard(**card) for card in cards]
+    except Exception as e:
+        logger.error(f"Error listing flashcards: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/", response_model=Flashcard)
 async def create_flashcard(
     flashcard: FlashcardCreate,
-    settings: Settings = Depends(get_settings)
+    manager: FlashcardManager = Depends(get_flashcard_manager)
 ):
     """
     Create a new flashcard.
 
     Args:
         flashcard: Flashcard data
-        settings: Application settings
+        manager: Flashcard manager
 
     Returns:
         Created flashcard
     """
-    # TODO: Implement flashcard creation
-    raise HTTPException(
-        status_code=501,
-        detail="Flashcard creation not yet implemented"
-    )
+    try:
+        card_id = manager.create_flashcard(
+            subject=flashcard.subject,
+            question=flashcard.question,
+            answer=flashcard.answer,
+            difficulty=flashcard.difficulty,
+            tags=flashcard.tags
+        )
+        card = manager.get_flashcard(card_id)
+        return Flashcard(**card)
+    except Exception as e:
+        logger.error(f"Error creating flashcard: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{flashcard_id}", response_model=Flashcard)
 async def get_flashcard(
     flashcard_id: str,
-    settings: Settings = Depends(get_settings)
+    manager: FlashcardManager = Depends(get_flashcard_manager)
 ):
     """
     Get a specific flashcard.
 
     Args:
         flashcard_id: Flashcard ID
-        settings: Application settings
+        manager: Flashcard manager
 
     Returns:
         Flashcard details
     """
-    # TODO: Implement flashcard retrieval
-    raise HTTPException(
-        status_code=404,
-        detail=f"Flashcard '{flashcard_id}' not found"
-    )
+    try:
+        card = manager.get_flashcard(flashcard_id)
+        if not card:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Flashcard '{flashcard_id}' not found"
+            )
+        return Flashcard(**card)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting flashcard: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/{flashcard_id}", response_model=Flashcard)
 async def update_flashcard(
     flashcard_id: str,
     update: FlashcardUpdate,
-    settings: Settings = Depends(get_settings)
+    manager: FlashcardManager = Depends(get_flashcard_manager)
 ):
     """
     Update a flashcard.
@@ -132,82 +159,120 @@ async def update_flashcard(
     Args:
         flashcard_id: Flashcard ID
         update: Update data
-        settings: Application settings
+        manager: Flashcard manager
 
     Returns:
         Updated flashcard
     """
-    # TODO: Implement flashcard update
-    raise HTTPException(
-        status_code=404,
-        detail=f"Flashcard '{flashcard_id}' not found"
-    )
+    try:
+        updated = manager.update_flashcard(
+            flashcard_id=flashcard_id,
+            question=update.question,
+            answer=update.answer,
+            difficulty=update.difficulty,
+            tags=update.tags
+        )
+        if not updated:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Flashcard '{flashcard_id}' not found"
+            )
+        return Flashcard(**updated)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating flashcard: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/{flashcard_id}")
 async def delete_flashcard(
     flashcard_id: str,
-    settings: Settings = Depends(get_settings)
+    manager: FlashcardManager = Depends(get_flashcard_manager)
 ):
     """
     Delete a flashcard.
 
     Args:
         flashcard_id: Flashcard ID
-        settings: Application settings
+        manager: Flashcard manager
 
     Returns:
         Confirmation message
     """
-    # TODO: Implement flashcard deletion
-    raise HTTPException(
-        status_code=404,
-        detail=f"Flashcard '{flashcard_id}' not found"
-    )
+    try:
+        deleted = manager.delete_flashcard(flashcard_id)
+        if not deleted:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Flashcard '{flashcard_id}' not found"
+            )
+        return {"message": f"Flashcard '{flashcard_id}' deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting flashcard: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/next/due", response_model=Flashcard)
 async def get_next_flashcard(
     subject: str | None = Query(None, description="Filter by subject"),
-    settings: Settings = Depends(get_settings)
+    manager: FlashcardManager = Depends(get_flashcard_manager)
 ):
     """
     Get the next flashcard due for review (spaced repetition).
 
     Args:
         subject: Optional subject filter
-        settings: Application settings
+        manager: Flashcard manager
 
     Returns:
         Next flashcard to review
     """
-    # TODO: Implement spaced repetition algorithm
-    raise HTTPException(
-        status_code=404,
-        detail="No flashcards due for review"
-    )
+    try:
+        card = manager.get_next_due_flashcard(subject=subject)
+        if not card:
+            raise HTTPException(status_code=404, detail="No flashcards due for review")
+        return Flashcard(**card)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting next flashcard: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/answer")
 async def record_answer(
     answer: AnswerRequest,
-    settings: Settings = Depends(get_settings)
+    manager: FlashcardManager = Depends(get_flashcard_manager)
 ):
     """
     Record an answer and update spaced repetition schedule.
 
     Args:
         answer: Answer data
-        settings: Application settings
+        manager: Flashcard manager
 
     Returns:
         Updated flashcard and next review date
     """
-    # TODO: Implement answer recording and SR update
-    raise HTTPException(
-        status_code=501,
-        detail="Answer recording not yet implemented"
-    )
+    try:
+        updated = manager.record_answer(
+            flashcard_id=answer.flashcard_id,
+            correct=answer.correct,
+            time_spent_seconds=answer.time_spent_seconds
+        )
+        return {
+            "flashcard": Flashcard(**updated),
+            "next_review": updated.get("next_review"),
+            "message": "Answer recorded successfully"
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error recording answer: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/generate", response_model=List[Flashcard])
@@ -234,21 +299,20 @@ async def generate_flashcards(
 
 @router.get("/stats/overview")
 async def get_study_stats(
-    settings: Settings = Depends(get_settings)
+    manager: FlashcardManager = Depends(get_flashcard_manager)
 ):
     """
     Get study statistics overview.
 
     Args:
-        settings: Application settings
+        manager: Flashcard manager
 
     Returns:
         Study statistics
     """
-    # TODO: Implement study statistics
-    return {
-        "total_flashcards": 0,
-        "due_today": 0,
-        "accuracy": 0.0,
-        "study_streak_days": 0
-    }
+    try:
+        stats = manager.get_stats()
+        return stats
+    except Exception as e:
+        logger.error(f"Error getting stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

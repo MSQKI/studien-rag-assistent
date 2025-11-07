@@ -7,8 +7,11 @@ from typing import List, Dict, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from loguru import logger
 
 from app.config import get_settings, Settings
+from app.api.dependencies import get_graph_builder
+from app.services.graph.graph_builder import GraphBuilder
 
 router = APIRouter()
 
@@ -71,42 +74,68 @@ async def extract_entities(
 @router.get("/concepts", response_model=List[ConceptNode])
 async def list_concepts(
     subject: str | None = Query(None, description="Filter by subject"),
-    settings: Settings = Depends(get_settings)
+    graph_builder: GraphBuilder = Depends(get_graph_builder)
 ):
     """
     List all concepts in the knowledge graph.
 
     Args:
         subject: Optional subject filter
-        settings: Application settings
+        graph_builder: Graph builder instance
 
     Returns:
         List of concept nodes
     """
-    # TODO: Implement concept listing from Neo4j
-    return []
+    try:
+        concepts = graph_builder.get_all_concepts(subject=subject)
+        return [
+            ConceptNode(
+                name=concept["name"],
+                type=concept["labels"][0] if concept["labels"] else "Concept",
+                description=concept.get("description"),
+                properties={}
+            )
+            for concept in concepts
+        ]
+    except Exception as e:
+        logger.error(f"Error listing concepts: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/concept/{name}", response_model=ConceptNode)
 async def get_concept(
     name: str,
-    settings: Settings = Depends(get_settings)
+    graph_builder: GraphBuilder = Depends(get_graph_builder)
 ):
     """
     Get details for a specific concept.
 
     Args:
         name: Concept name
-        settings: Application settings
+        graph_builder: Graph builder instance
 
     Returns:
         Concept node with details
     """
-    # TODO: Implement concept retrieval from Neo4j
-    raise HTTPException(
-        status_code=404,
-        detail=f"Concept '{name}' not found"
-    )
+    try:
+        concept = graph_builder.get_concept(name)
+        if not concept:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Concept '{name}' not found"
+            )
+
+        return ConceptNode(
+            name=concept["name"],
+            type="Concept",
+            description=concept.get("description"),
+            properties=concept.get("properties", {})
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting concept: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/path", response_model=LearningPath)
@@ -158,20 +187,51 @@ async def get_related_concepts(
 
 @router.get("/stats")
 async def get_graph_stats(
-    settings: Settings = Depends(get_settings)
+    graph_builder: GraphBuilder = Depends(get_graph_builder)
 ):
     """
     Get knowledge graph statistics.
 
     Args:
-        settings: Application settings
+        graph_builder: Graph builder instance
 
     Returns:
         Graph statistics
     """
-    # TODO: Implement graph stats
-    return {
-        "total_concepts": 0,
-        "total_relationships": 0,
-        "subjects": []
-    }
+    try:
+        stats = graph_builder.get_stats()
+        return {
+            "total_nodes": stats.get("total_nodes", 0),
+            "total_relationships": stats.get("total_relationships", 0),
+            "concepts": stats.get("concepts", 0),
+            "topics": stats.get("topics", 0),
+            "people": stats.get("people", 0)
+        }
+    except Exception as e:
+        logger.error(f"Error getting graph stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/clear")
+async def clear_graph(
+    graph_builder: GraphBuilder = Depends(get_graph_builder)
+):
+    """
+    Clear all graph data (use with caution!).
+
+    Args:
+        graph_builder: Graph builder instance
+
+    Returns:
+        Deletion confirmation
+    """
+    try:
+        result = graph_builder.delete_all()
+        return {
+            "message": "Graph data cleared successfully",
+            "nodes_deleted": result["nodes_deleted"],
+            "relationships_deleted": result["relationships_deleted"]
+        }
+    except Exception as e:
+        logger.error(f"Error clearing graph: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
