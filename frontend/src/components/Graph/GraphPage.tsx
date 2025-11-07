@@ -20,6 +20,8 @@ const GraphPage: React.FC = () => {
       return data;
     },
     retry: 1,
+    staleTime: 10000, // 10 seconds
+    refetchOnWindowFocus: true,
   });
 
   // Transform graph data to Cytoscape format

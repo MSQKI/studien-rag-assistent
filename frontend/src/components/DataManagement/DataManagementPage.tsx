@@ -33,7 +33,14 @@ const DataManagementPage: React.FC = () => {
   const deleteDocumentMutation = useMutation({
     mutationFn: (document_id: string) => documentsAPI.delete(document_id, true, true),
     onSuccess: () => {
+      // Invalidate ALL related queries
       queryClient.invalidateQueries({ queryKey: ['documents'] });
+      queryClient.invalidateQueries({ queryKey: ['ragStats'] });
+      queryClient.invalidateQueries({ queryKey: ['graph-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['graph-data'] });
+      queryClient.invalidateQueries({ queryKey: ['graphData'] });
+      queryClient.invalidateQueries({ queryKey: ['flashcards'] });
+      queryClient.invalidateQueries({ queryKey: ['flashcardStats'] });
       alert('Dokument erfolgreich gelöscht');
     },
     onError: (error) => {
@@ -70,7 +77,11 @@ const DataManagementPage: React.FC = () => {
   const clearGraphMutation = useMutation({
     mutationFn: () => graphAPI.clear(),
     onSuccess: () => {
+      // Invalidate ALL graph-related queries
       queryClient.invalidateQueries({ queryKey: ['graph-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['graph-data'] });
+      queryClient.invalidateQueries({ queryKey: ['graphData'] });
+      queryClient.invalidateQueries({ queryKey: ['concepts'] });
       alert('Knowledge Graph erfolgreich geleert');
     },
     onError: (error) => {
@@ -82,8 +93,10 @@ const DataManagementPage: React.FC = () => {
   const clearAllFlashcardsMutation = useMutation({
     mutationFn: () => flashcardsAPI.clearAll(),
     onSuccess: (data) => {
+      // Invalidate ALL flashcard-related queries
       queryClient.invalidateQueries({ queryKey: ['flashcards'] });
       queryClient.invalidateQueries({ queryKey: ['flashcardStats'] });
+      queryClient.invalidateQueries({ queryKey: ['nextFlashcard'] });
       alert(`Alle Karteikarten erfolgreich gelöscht (${data.deleted_count} Karten)`);
     },
     onError: (error) => {
