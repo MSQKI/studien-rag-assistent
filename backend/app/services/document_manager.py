@@ -69,11 +69,21 @@ class DocumentManager:
                 # Get chunk count from ChromaDB
                 chunk_count = 0
                 try:
+                    # Try new format first (with document_id)
                     results = self.collection.get(
                         where={"document_id": doc_id},
                         include=["metadatas"]
                     )
                     chunk_count = len(results["ids"]) if results["ids"] else 0
+
+                    # Fallback: Try old format (with source_file) for backwards compatibility
+                    if chunk_count == 0:
+                        results = self.collection.get(
+                            where={"source_file": file_path.name},
+                            include=["metadatas"]
+                        )
+                        chunk_count = len(results["ids"]) if results["ids"] else 0
+
                 except Exception as e:
                     logger.warning(f"Could not get chunk count for {file_path.name}: {e}")
 

@@ -40,21 +40,26 @@ class DocumentPipeline:
         file_path: Path,
         subject: str | None = None,
         assistant: RAGAssistant = None,
-        graph_builder: GraphBuilder = None
+        graph_builder: GraphBuilder = None,
+        document_id: str | None = None
     ) -> Dict[str, Any]:
         """
-        Process a document through the complete pipeline.
+        Process a document through the complete pipeline with parallel processing.
 
         Args:
             file_path: Path to PDF file
             subject: Optional subject classification
             assistant: RAG assistant instance
             graph_builder: Graph builder instance
+            document_id: Optional document ID (generated if not provided)
 
         Returns:
             Processing results with statistics
         """
-        document_id = str(uuid.uuid4())
+        import asyncio
+
+        if document_id is None:
+            document_id = str(uuid.uuid4())
         filename = file_path.name
 
         logger.info(f"Processing document: {filename} (ID: {document_id})")
@@ -71,62 +76,106 @@ class DocumentPipeline:
         }
 
         try:
-            # Step 1: Extract and chunk document
+            # Step 1: Extract and chunk document (must happen first)
             logger.info(f"Step 1/4: Chunking document {filename}")
             documents = self.doc_processor.process_pdf(file_path)
+
+            # Add document_id to ALL chunk metadata for tracking
+            for doc in documents:
+                doc.metadata["document_id"] = document_id
+                doc.metadata["filename"] = filename
+
             results["chunks_created"] = len(documents)
 
-            # Step 2: Add to vector store (RAG)
-            if assistant:
-                logger.info(f"Step 2/4: Adding {len(documents)} chunks to vector store")
-                try:
-                    assistant.add_documents(documents)
-                except Exception as e:
-                    logger.error(f"Error adding to vector store: {str(e)}")
-                    results["errors"].append(f"Vector store: {str(e)}")
+            logger.info(f"Created {len(documents)} chunks, now processing in parallel...")
 
-            # Step 3: Entity extraction for knowledge graph
-            if graph_builder and self.settings.entity_extraction_enabled:
-                logger.info(f"Step 3/4: Extracting entities for knowledge graph")
-                try:
-                    # Prepare chunks for extraction
-                    chunks_for_extraction = [
-                        {
-                            "text": doc.page_content,
-                            "metadata": doc.metadata
-                        }
-                        for doc in documents[:50]  # Limit to first 50 chunks
-                    ]
+            # Step 2-4: Process in parallel for speed
+            tasks = []
 
-                    graph_data = self.entity_extractor.extract_from_document_chunks(
-                        chunks_for_extraction,
-                        subject=subject
-                    )
+            # Task 1: Add to vector store (RAG)
+            async def add_to_vector_store():
+                if assistant:
+                    logger.info(f"Adding {len(documents)} chunks to vector store")
+                    try:
+                        # Process in batches for better performance
+                        batch_size = 50
+                        for i in range(0, len(documents), batch_size):
+                            batch = documents[i:i+batch_size]
+                            assistant.add_documents(batch)
+                            logger.info(f"Processed batch {i//batch_size + 1}/{(len(documents) + batch_size - 1)//batch_size}")
+                    except Exception as e:
+                        logger.error(f"Error adding to vector store: {str(e)}")
+                        results["errors"].append(f"Vector store: {str(e)}")
 
-                    # Add to graph
-                    graph_result = graph_builder.add_graph_data(graph_data)
-                    results["entities_extracted"] = graph_result["nodes_created"]
-                    results["relationships_created"] = graph_result["relationships_created"]
+            # Task 2: Entity extraction for knowledge graph
+            async def extract_entities():
+                if graph_builder and self.settings.entity_extraction_enabled:
+                    logger.info(f"Extracting entities for knowledge graph")
+                    try:
+                        # Smart sampling: first chunks + evenly distributed samples
+                        sample_size = min(30, len(documents))  # Reduced from 50
+                        if len(documents) > sample_size:
+                            # Take first 10 chunks + evenly distributed samples
+                            step = len(documents) // (sample_size - 10)
+                            sampled_docs = documents[:10] + [documents[i] for i in range(10, len(documents), step)][:sample_size-10]
+                        else:
+                            sampled_docs = documents
 
-                except Exception as e:
-                    logger.error(f"Error in entity extraction: {str(e)}")
-                    results["errors"].append(f"Entity extraction: {str(e)}")
+                        chunks_for_extraction = [
+                            {
+                                "text": doc.page_content,
+                                "metadata": doc.metadata
+                            }
+                            for doc in sampled_docs
+                        ]
 
-            # Step 4: Generate flashcards
-            if self.settings.flashcard_generation_enabled:
-                logger.info(f"Step 4/4: Generating flashcards")
-                try:
-                    flashcards = await self.flashcard_generator.generate_from_documents(
-                        documents=documents[:20],  # First 20 chunks
-                        subject=subject or "General",
-                        document_id=document_id,
-                        count=self.settings.flashcards_per_document
-                    )
-                    results["flashcards_generated"] = len(flashcards)
+                        graph_data = self.entity_extractor.extract_from_document_chunks(
+                            chunks_for_extraction,
+                            subject=subject
+                        )
 
-                except Exception as e:
-                    logger.error(f"Error generating flashcards: {str(e)}")
-                    results["errors"].append(f"Flashcard generation: {str(e)}")
+                        # Add to graph
+                        graph_result = graph_builder.add_graph_data(graph_data)
+                        results["entities_extracted"] = graph_result["nodes_created"]
+                        results["relationships_created"] = graph_result["relationships_created"]
+
+                    except Exception as e:
+                        logger.error(f"Error in entity extraction: {str(e)}")
+                        results["errors"].append(f"Entity extraction: {str(e)}")
+
+            # Task 3: Generate flashcards
+            async def generate_flashcards():
+                if self.settings.flashcard_generation_enabled:
+                    logger.info(f"Generating flashcards")
+                    try:
+                        # Smart sampling for flashcards
+                        sample_size = min(15, len(documents))  # Reduced from 20
+                        if len(documents) > sample_size:
+                            # Take chunks from beginning, middle, end
+                            third = len(documents) // 3
+                            sampled_docs = documents[:5] + documents[third:third+5] + documents[-5:]
+                        else:
+                            sampled_docs = documents[:sample_size]
+
+                        flashcards = await self.flashcard_generator.generate_from_documents(
+                            documents=sampled_docs,
+                            subject=subject or "General",
+                            document_id=document_id,
+                            count=self.settings.flashcards_per_document
+                        )
+                        results["flashcards_generated"] = len(flashcards)
+
+                    except Exception as e:
+                        logger.error(f"Error generating flashcards: {str(e)}")
+                        results["errors"].append(f"Flashcard generation: {str(e)}")
+
+            # Run all tasks in parallel
+            await asyncio.gather(
+                add_to_vector_store(),
+                extract_entities(),
+                generate_flashcards(),
+                return_exceptions=True  # Don't fail all if one task fails
+            )
 
             logger.info(f"Document processing complete: {filename}")
             return results

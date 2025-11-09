@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Trash2, Edit2, FileText, Brain, Database } from 'lucide-react';
+import { Trash2, Edit2, FileText, Brain, Database, Plus } from 'lucide-react';
 
 import { documentsAPI, flashcardsAPI, graphAPI } from '../../services/api';
 
@@ -11,36 +11,51 @@ const DataManagementPage: React.FC = () => {
   const [editingFlashcard, setEditingFlashcard] = useState<any>(null);
   const queryClient = useQueryClient();
 
-  // Documents Query
-  const { data: documentsData, isLoading: documentsLoading } = useQuery({
+  // Documents Query - Aggressive cache invalidation for real-time sync
+  const { data: documentsData, isLoading: documentsLoading, refetch: refetchDocuments } = useQuery({
     queryKey: ['documents'],
     queryFn: () => documentsAPI.list(),
+    staleTime: 0,  // Always consider data stale
+    refetchOnMount: true,  // Always refetch on mount
+    refetchOnWindowFocus: true,  // Refetch when user returns to tab
   });
 
-  // Flashcards Query
-  const { data: flashcardsData, isLoading: flashcardsLoading } = useQuery({
+  // Flashcards Query - Aggressive cache invalidation
+  const { data: flashcardsData, isLoading: flashcardsLoading, refetch: refetchFlashcards } = useQuery({
     queryKey: ['flashcards'],
     queryFn: () => flashcardsAPI.list({ limit: 100 }),
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
-  // Graph Stats Query
-  const { data: graphStats, isLoading: graphLoading } = useQuery({
+  // Graph Stats Query - Aggressive cache invalidation
+  const { data: graphStats, isLoading: graphLoading, refetch: refetchGraph } = useQuery({
     queryKey: ['graph-stats'],
     queryFn: () => graphAPI.getStats(),
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   // Delete Document Mutation
   const deleteDocumentMutation = useMutation({
     mutationFn: (document_id: string) => documentsAPI.delete(document_id, true, true),
-    onSuccess: () => {
-      // Invalidate ALL related queries
-      queryClient.invalidateQueries({ queryKey: ['documents'] });
-      queryClient.invalidateQueries({ queryKey: ['ragStats'] });
-      queryClient.invalidateQueries({ queryKey: ['graph-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['graph-data'] });
-      queryClient.invalidateQueries({ queryKey: ['graphData'] });
-      queryClient.invalidateQueries({ queryKey: ['flashcards'] });
-      queryClient.invalidateQueries({ queryKey: ['flashcardStats'] });
+    onSuccess: async () => {
+      // Invalidate ALL related queries with aggressive refetch
+      await queryClient.invalidateQueries({ queryKey: ['documents'], refetchType: 'active' });
+      await queryClient.invalidateQueries({ queryKey: ['ragStats'], refetchType: 'active' });
+      await queryClient.invalidateQueries({ queryKey: ['graph-stats'], refetchType: 'active' });
+      await queryClient.invalidateQueries({ queryKey: ['graph-data'], refetchType: 'active' });
+      await queryClient.invalidateQueries({ queryKey: ['graphData'], refetchType: 'active' });
+      await queryClient.invalidateQueries({ queryKey: ['flashcards'], refetchType: 'active' });
+      await queryClient.invalidateQueries({ queryKey: ['flashcardStats'], refetchType: 'active' });
+
+      // Force immediate refetch
+      await refetchDocuments();
+      await refetchFlashcards();
+      await refetchGraph();
+
       alert('Dokument erfolgreich gelöscht');
     },
     onError: (error) => {
@@ -51,8 +66,10 @@ const DataManagementPage: React.FC = () => {
   // Delete Flashcard Mutation
   const deleteFlashcardMutation = useMutation({
     mutationFn: (flashcard_id: string) => flashcardsAPI.delete(flashcard_id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['flashcards'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['flashcards'], refetchType: 'active' });
+      await queryClient.invalidateQueries({ queryKey: ['flashcardStats'], refetchType: 'active' });
+      await refetchFlashcards();
       alert('Karteikarte erfolgreich gelöscht');
     },
     onError: (error) => {
@@ -63,8 +80,9 @@ const DataManagementPage: React.FC = () => {
   // Update Flashcard Mutation
   const updateFlashcardMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => flashcardsAPI.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['flashcards'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['flashcards'], refetchType: 'active' });
+      await refetchFlashcards();
       setEditingFlashcard(null);
       alert('Karteikarte erfolgreich aktualisiert');
     },
@@ -76,12 +94,13 @@ const DataManagementPage: React.FC = () => {
   // Clear Graph Mutation
   const clearGraphMutation = useMutation({
     mutationFn: () => graphAPI.clear(),
-    onSuccess: () => {
+    onSuccess: async () => {
       // Invalidate ALL graph-related queries
-      queryClient.invalidateQueries({ queryKey: ['graph-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['graph-data'] });
-      queryClient.invalidateQueries({ queryKey: ['graphData'] });
-      queryClient.invalidateQueries({ queryKey: ['concepts'] });
+      await queryClient.invalidateQueries({ queryKey: ['graph-stats'], refetchType: 'active' });
+      await queryClient.invalidateQueries({ queryKey: ['graph-data'], refetchType: 'active' });
+      await queryClient.invalidateQueries({ queryKey: ['graphData'], refetchType: 'active' });
+      await queryClient.invalidateQueries({ queryKey: ['concepts'], refetchType: 'active' });
+      await refetchGraph();
       alert('Knowledge Graph erfolgreich geleert');
     },
     onError: (error) => {
@@ -92,15 +111,31 @@ const DataManagementPage: React.FC = () => {
   // Clear All Flashcards Mutation
   const clearAllFlashcardsMutation = useMutation({
     mutationFn: () => flashcardsAPI.clearAll(),
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       // Invalidate ALL flashcard-related queries
-      queryClient.invalidateQueries({ queryKey: ['flashcards'] });
-      queryClient.invalidateQueries({ queryKey: ['flashcardStats'] });
-      queryClient.invalidateQueries({ queryKey: ['nextFlashcard'] });
+      await queryClient.invalidateQueries({ queryKey: ['flashcards'], refetchType: 'active' });
+      await queryClient.invalidateQueries({ queryKey: ['flashcardStats'], refetchType: 'active' });
+      await queryClient.invalidateQueries({ queryKey: ['nextFlashcard'], refetchType: 'active' });
+      await refetchFlashcards();
       alert(`Alle Karteikarten erfolgreich gelöscht (${data.deleted_count} Karten)`);
     },
     onError: (error) => {
       alert(`Fehler beim Löschen: ${error}`);
+    },
+  });
+
+  // Generate More Flashcards Mutation
+  const generateFlashcardsMutation = useMutation({
+    mutationFn: ({ document_id, count }: { document_id: string; count: number }) =>
+      documentsAPI.generateFlashcards(document_id, count),
+    onSuccess: async (data) => {
+      await queryClient.invalidateQueries({ queryKey: ['flashcards'], refetchType: 'active' });
+      await queryClient.invalidateQueries({ queryKey: ['flashcardStats'], refetchType: 'active' });
+      await refetchFlashcards();
+      alert(`${data.flashcards_generated} neue Karteikarten erfolgreich generiert!`);
+    },
+    onError: (error) => {
+      alert(`Fehler beim Generieren: ${error}`);
     },
   });
 
@@ -140,6 +175,17 @@ const DataManagementPage: React.FC = () => {
   const handleClearAllFlashcards = () => {
     if (confirm('⚠️ ACHTUNG: Alle Karteikarten und ihr Lernfortschritt werden unwiderruflich gelöscht!\n\nDiese Aktion kann NICHT rückgängig gemacht werden.\n\nWirklich ALLE Karteikarten löschen?')) {
       clearAllFlashcardsMutation.mutate();
+    }
+  };
+
+  const handleGenerateFlashcards = (doc_id: string, filename: string) => {
+    const count = prompt(
+      `Wie viele Karteikarten sollen für "${filename}" generiert werden?\n\nEmpfohlen: 10-20 Karten\nMaximum: 50 Karten`,
+      '20'
+    );
+    if (count && !isNaN(Number(count))) {
+      const numCount = Math.min(Math.max(Number(count), 1), 50);
+      generateFlashcardsMutation.mutate({ document_id: doc_id, count: numCount });
     }
   };
 
@@ -214,15 +260,27 @@ const DataManagementPage: React.FC = () => {
                         </span>
                       </td>
                       <td style={{ padding: '12px' }}>
-                        <button
-                          className="btn btn-danger"
-                          onClick={() => handleDeleteDocument(doc.id, doc.filename)}
-                          disabled={deleteDocumentMutation.isPending}
-                          style={{ padding: '6px 12px', fontSize: '14px' }}
-                        >
-                          <Trash2 size={14} />
-                          Löschen
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            className="btn btn-primary"
+                            onClick={() => handleGenerateFlashcards(doc.id, doc.filename)}
+                            disabled={generateFlashcardsMutation.isPending || !doc.processed}
+                            title="Mehr Karteikarten generieren"
+                            style={{ padding: '6px 12px', fontSize: '14px' }}
+                          >
+                            <Plus size={14} />
+                            Karten
+                          </button>
+                          <button
+                            className="btn btn-danger"
+                            onClick={() => handleDeleteDocument(doc.id, doc.filename)}
+                            disabled={deleteDocumentMutation.isPending}
+                            style={{ padding: '6px 12px', fontSize: '14px' }}
+                          >
+                            <Trash2 size={14} />
+                            Löschen
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

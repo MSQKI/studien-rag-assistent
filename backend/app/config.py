@@ -160,8 +160,12 @@ class Settings(BaseSettings):
         description="Enable automatic flashcard generation"
     )
     flashcards_per_document: int = Field(
-        default=10,
-        description="Max flashcards to generate per document"
+        default=15,
+        description="Max flashcards to generate per document on initial upload"
+    )
+    flashcards_max_per_generation: int = Field(
+        default=20,
+        description="Max flashcards to generate when manually requesting more"
     )
     spaced_repetition_algorithm: str = Field(
         default="sm2",

@@ -44,6 +44,32 @@ class DocumentUploadResponse(BaseModel):
     details: dict | None = None
 
 
+async def _process_document_background(
+    file_path: Path,
+    subject: str | None,
+    document_id: str,
+    filename: str
+):
+    """Background task for document processing."""
+    try:
+        logger.info(f"Starting background processing for {filename}")
+        pipeline = get_document_pipeline()
+        assistant = get_rag_assistant()
+        graph_builder = get_graph_builder()
+
+        result = await pipeline.process_document(
+            file_path=file_path,
+            subject=subject,
+            assistant=assistant,
+            graph_builder=graph_builder,
+            document_id=document_id
+        )
+
+        logger.info(f"Background processing completed for {filename}: {result}")
+    except Exception as e:
+        logger.error(f"Background processing failed for {filename}: {str(e)}")
+
+
 @router.post("/upload", response_model=DocumentUploadResponse)
 async def upload_document(
     background_tasks: BackgroundTasks,
@@ -55,9 +81,10 @@ async def upload_document(
     Upload a PDF document for processing.
     The document will be:
     1. Stored in the uploads directory
-    2. Chunked and added to ChromaDB
-    3. Processed for entity extraction (graph)
-    4. Used to generate flashcards
+    2. Processed in the background (chunked, added to ChromaDB, entities extracted, flashcards generated)
+
+    This endpoint returns IMMEDIATELY after file validation and saving.
+    Processing happens asynchronously in the background.
 
     Args:
         background_tasks: FastAPI background tasks
@@ -66,7 +93,7 @@ async def upload_document(
         settings: Application settings
 
     Returns:
-        Upload confirmation with document ID
+        Upload confirmation with document ID (processing continues in background)
     """
     try:
         # Validate file type
@@ -91,40 +118,33 @@ async def upload_document(
         with open(file_path, "wb") as f:
             f.write(contents)
 
-        logger.info(f"Saved uploaded file: {file.filename}")
+        logger.info(f"Saved uploaded file: {file.filename} ({file_size_mb:.2f}MB)")
 
-        # Process document through pipeline
-        pipeline = get_document_pipeline()
-        assistant = get_rag_assistant()
-        graph_builder = get_graph_builder()
+        # Generate document ID
+        import uuid
+        document_id = str(uuid.uuid4())
 
-        try:
-            result = await pipeline.process_document(
-                file_path=file_path,
-                subject=subject,
-                assistant=assistant,
-                graph_builder=graph_builder
-            )
+        # Add background task for processing
+        background_tasks.add_task(
+            _process_document_background,
+            file_path=file_path,
+            subject=subject,
+            document_id=document_id,
+            filename=file.filename
+        )
 
-            return DocumentUploadResponse(
-                document_id=result["document_id"],
-                filename=result["filename"],
-                status="success" if not result["errors"] else "partial_success",
-                message=f"Document processed successfully. Created {result['chunks_created']} chunks, "
-                        f"{result['entities_extracted']} entities, and {result['flashcards_generated']} flashcards.",
-                details=result
-            )
-
-        except Exception as e:
-            logger.error(f"Error processing document: {str(e)}")
-            # File was saved but processing failed
-            return DocumentUploadResponse(
-                document_id="error",
-                filename=file.filename,
-                status="error",
-                message=f"Document saved but processing failed: {str(e)}",
-                details={"error": str(e)}
-            )
+        # Return immediately
+        return DocumentUploadResponse(
+            document_id=document_id,
+            filename=file.filename,
+            status="processing",
+            message=f"Document uploaded successfully. Processing in background...",
+            details={
+                "file_size_mb": round(file_size_mb, 2),
+                "subject": subject,
+                "note": "Processing will complete in the background. Check stats to see progress."
+            }
+        )
 
     except HTTPException:
         raise
@@ -248,6 +268,76 @@ async def delete_document(
         raise
     except Exception as e:
         logger.error(f"Error deleting document: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{document_id}/generate-flashcards")
+async def generate_more_flashcards(
+    document_id: str,
+    count: int = Query(20, ge=1, le=50, description="Number of flashcards to generate"),
+    settings: Settings = Depends(get_settings)
+):
+    """
+    Generate additional flashcards for an existing document.
+
+    Args:
+        document_id: Document ID
+        count: Number of flashcards to generate (1-50)
+        settings: Application settings
+
+    Returns:
+        Generation results
+    """
+    try:
+        from app.services.flashcards.flashcard_generator import FlashcardGenerator
+        from app.services.rag.document_processor import DocumentProcessor
+        from app.services.document_manager import get_document_manager
+
+        doc_manager = get_document_manager()
+
+        # Check if document exists
+        document = doc_manager.get_document(document_id)
+        if not document:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Document '{document_id}' not found"
+            )
+
+        # Get document path
+        file_path = settings.upload_dir / document["filename"]
+        if not file_path.exists():
+            raise HTTPException(
+                status_code=404,
+                detail=f"Document file not found: {document['filename']}"
+            )
+
+        logger.info(f"Generating {count} additional flashcards for {document['filename']}")
+
+        # Process document to get chunks
+        doc_processor = DocumentProcessor()
+        documents = doc_processor.process_pdf(file_path)
+
+        # Generate flashcards
+        flashcard_generator = FlashcardGenerator()
+        flashcards = await flashcard_generator.generate_from_documents(
+            documents=documents,
+            subject=document.get("subject") or "General",
+            document_id=document_id,
+            count=count
+        )
+
+        return {
+            "message": f"Successfully generated {len(flashcards)} additional flashcards",
+            "document_id": document_id,
+            "filename": document["filename"],
+            "flashcards_generated": len(flashcards),
+            "flashcard_ids": [fc["id"] for fc in flashcards]
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating flashcards: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

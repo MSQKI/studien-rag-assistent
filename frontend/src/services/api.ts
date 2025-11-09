@@ -108,6 +108,12 @@ export const documentsAPI = {
     });
     return response.data;
   },
+  generateFlashcards: async (document_id: string, count: number = 20) => {
+    const response = await api.post(`/documents/${document_id}/generate-flashcards`, null, {
+      params: { count },
+    });
+    return response.data;
+  },
 };
 
 // Graph API
