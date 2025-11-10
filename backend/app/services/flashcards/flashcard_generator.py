@@ -32,25 +32,49 @@ class FlashcardGenerator:
         logger.info("Initialized flashcard generator")
 
     def _init_prompt(self) -> None:
-        """Initialize generation prompt."""
+        """Initialize generation prompt with improved quality guidelines."""
         self.prompt = ChatPromptTemplate.from_messages([
-            ("system", """Du bist ein Experte für die Erstellung von Lernkarteikarten.
+            ("system", """Du bist ein Experte für die Erstellung von Lernkarteikarten nach Spaced-Repetition-Prinzipien.
 
 Erstelle aus dem gegebenen Text Karteikarten, die Studierenden beim Lernen helfen.
 
-**Regeln:**
-1. Erstelle präzise, faktische Fragen
-2. Antworten sollten kurz und prägnant sein (1-3 Sätze)
-3. Fokussiere auf wichtige Konzepte und Definitionen
-4. Vermeide zu triviale oder zu komplexe Fragen
-5. Nutze verschiedene Fragetypen (Was ist...?, Erkläre..., Nenne..., etc.)
+**KRITISCHE REGELN (UNBEDINGT BEFOLGEN):**
+1. ⚠️  **NIEMALS die Antwort in der Frage verraten!** Die Frage muss beantwortbar sein, OHNE die Antwort zu sehen.
+2. Die Frage sollte testendes Wissen abfragen, nicht nur Fakten wiederholen
+3. Vermeide Füllwörter wie "laut Text" oder "das Dokument sagt"
+4. Keine rhetorischen oder Suggestivfragen
+
+**GUTE vs SCHLECHTE Beispiele:**
+
+❌ SCHLECHT: "Was ist Aktives Zuhören und wie zeigt man Empathie?"
+→ Problem: Enthält die Antwort ("Empathie zeigen") bereits in der Frage
+
+✅ GUT: "Welche Techniken gehören zum Aktiven Zuhören?"
+→ Antwort: "Paraphrasieren, Nachfragen, Empathie zeigen, Blickkontakt halten"
+
+❌ SCHLECHT: "Erkläre die 4 Phasen des Beratungsgesprächs: Eröffnung, Problemanalyse, Lösungsentwicklung, Abschluss"
+→ Problem: Die komplette Antwort steht bereits in der Frage!
+
+✅ GUT: "Nenne die 4 Phasen eines Beratungsgesprächs"
+→ Antwort: "1. Eröffnung, 2. Problemanalyse, 3. Lösungsentwicklung, 4. Abschluss"
+
+**Weitere Qualitätsregeln:**
+- Fragen sollten präzise und eindeutig sein
+- Antworten sollten kurz und prägnant sein (1-3 Sätze)
+- Fokussiere auf wichtige Konzepte, Definitionen und Zusammenhänge
+- Nutze verschiedene Fragetypen:
+  * Definition: "Was ist...?", "Was versteht man unter...?"
+  * Aufzählung: "Nenne...", "Welche...gibt es?"
+  * Erklärung: "Wie funktioniert...?", "Warum...?"
+  * Anwendung: "Wann wird...eingesetzt?", "Wie wendet man...an?"
+- Vermeide zu triviale oder zu komplexe Fragen
 
 **Format:** Gib die Karteikarten als JSON-Array zurück:
 ```json
 [
   {{
-    "question": "Frage hier",
-    "answer": "Antwort hier",
+    "question": "Präzise Frage OHNE Antwort",
+    "answer": "Vollständige, prägnante Antwort",
     "difficulty": 1-5,
     "tags": ["tag1", "tag2"]
   }}
@@ -70,7 +94,7 @@ Erstelle aus dem gegebenen Text Karteikarten, die Studierenden beim Lernen helfe
 
 **Anzahl Karteikarten:** {count}
 
-Erstelle genau {count} hochwertige Karteikarten.""")
+Erstelle genau {count} hochwertige Karteikarten. Achte besonders darauf, dass die FRAGE niemals die ANTWORT enthält!""")
         ])
 
     async def generate_from_documents(

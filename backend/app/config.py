@@ -77,6 +77,16 @@ class Settings(BaseSettings):
         description="Chunk overlap"
     )
 
+    # Advanced PDF Processing (State-of-the-art 2025)
+    use_advanced_pdf_processing: bool = Field(
+        default=True,
+        description="Use Unstructured.io for tables/images (requires additional dependencies)"
+    )
+    use_vision_for_images: bool = Field(
+        default=False,
+        description="Use GPT-4 Vision for image/table descriptions (slower, costs more)"
+    )
+
     # Storage Paths
     data_dir: Path = Field(
         default=Path("./data"),

@@ -15,7 +15,8 @@
       "Bash(docker-compose --version:*)",
       "Bash(docker-compose:*)",
       "Bash(curl:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

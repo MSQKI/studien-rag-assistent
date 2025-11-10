@@ -383,3 +383,84 @@ async def download_document(
         status_code=404,
         detail=f"Document '{document_id}' not found"
     )
+
+
+@router.post("/cleanup-orphaned-chunks")
+async def cleanup_orphaned_chunks(
+    settings: Settings = Depends(get_settings)
+):
+    """
+    Clean up orphaned chunks in ChromaDB (chunks from deleted documents).
+
+    This endpoint removes all chunks whose source files no longer exist.
+    Useful for cleaning up after manual file deletions or failed deletions.
+
+    Returns:
+        Cleanup statistics
+    """
+    try:
+        manager = get_document_manager()
+
+        # Get all chunks from ChromaDB
+        all_chunks = manager.collection.get(include=["metadatas"])
+
+        if not all_chunks or not all_chunks.get("ids"):
+            return {
+                "orphaned_chunks_found": 0,
+                "orphaned_chunks_deleted": 0,
+                "message": "No chunks found in ChromaDB"
+            }
+
+        # Get list of existing document IDs
+        existing_docs = manager.list_documents()
+        existing_doc_ids = {doc["id"] for doc in existing_docs}
+
+        # Get list of existing filenames
+        existing_files = {doc["filename"] for doc in existing_docs}
+
+        # Find orphaned chunks
+        orphaned_ids = []
+        for i, metadata in enumerate(all_chunks["metadatas"]):
+            chunk_id = all_chunks["ids"][i]
+
+            # Check if chunk belongs to a deleted document
+            doc_id = metadata.get("document_id")
+            source_file = metadata.get("source_file")
+            filename = metadata.get("filename")
+
+            is_orphaned = False
+
+            # Check by document_id (new format)
+            if doc_id and doc_id not in existing_doc_ids:
+                is_orphaned = True
+            # Check by source_file (old format)
+            elif source_file and source_file not in existing_files:
+                is_orphaned = True
+            # Check by filename (alternative format)
+            elif filename and filename not in existing_files:
+                is_orphaned = True
+            # If no identifying metadata, consider orphaned
+            elif not doc_id and not source_file and not filename:
+                is_orphaned = True
+
+            if is_orphaned:
+                orphaned_ids.append(chunk_id)
+
+        # Delete orphaned chunks
+        if orphaned_ids:
+            manager.collection.delete(ids=orphaned_ids)
+            logger.info(f"Cleaned up {len(orphaned_ids)} orphaned chunks from ChromaDB")
+
+        return {
+            "total_chunks": len(all_chunks["ids"]),
+            "orphaned_chunks_found": len(orphaned_ids),
+            "orphaned_chunks_deleted": len(orphaned_ids),
+            "message": f"Successfully cleaned up {len(orphaned_ids)} orphaned chunks"
+        }
+
+    except Exception as e:
+        logger.error(f"Error during cleanup: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Cleanup failed: {str(e)}"
+        )

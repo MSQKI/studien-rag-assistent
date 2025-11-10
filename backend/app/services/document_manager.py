@@ -196,16 +196,31 @@ class DocumentManager:
 
         # 2. Delete from ChromaDB
         try:
-            # Get all chunks for this document
+            # Try to get chunks by document_id (new format)
             doc_results = self.collection.get(
                 where={"document_id": document_id},
-                include=["documents"]
+                include=["metadatas"]
             )
 
+            chunks_deleted = 0
             if doc_results["ids"]:
                 self.collection.delete(ids=doc_results["ids"])
-                results["chunks_deleted"] = len(doc_results["ids"])
-                logger.info(f"Deleted {len(doc_results['ids'])} chunks from ChromaDB")
+                chunks_deleted = len(doc_results["ids"])
+                logger.info(f"Deleted {len(doc_results['ids'])} chunks from ChromaDB (by document_id)")
+
+            # Fallback: Also try to delete by source_file (for old chunks without document_id)
+            # This handles legacy data before document_id was added to metadata
+            if file_path:
+                old_chunks = self.collection.get(
+                    where={"source_file": file_path.name},
+                    include=["metadatas"]
+                )
+                if old_chunks["ids"]:
+                    self.collection.delete(ids=old_chunks["ids"])
+                    chunks_deleted += len(old_chunks["ids"])
+                    logger.info(f"Deleted {len(old_chunks['ids'])} legacy chunks from ChromaDB (by source_file)")
+
+            results["chunks_deleted"] = chunks_deleted
         except Exception as e:
             error_msg = f"Failed to delete from ChromaDB: {str(e)}"
             results["errors"].append(error_msg)

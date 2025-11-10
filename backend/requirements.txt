@@ -23,6 +23,16 @@ neo4j==5.26.0
 pypdf==5.1.0
 pypdf2==3.0.1
 
+# Advanced PDF Processing with Tables & Images (State-of-the-art 2025)
+unstructured[pdf]==0.16.14
+unstructured-inference==0.8.1
+pillow==11.0.0
+pdf2image==1.17.0
+pytesseract==0.3.13
+pymupdf==1.25.1  # For better table extraction
+pdfplumber==0.11.4  # Alternative for tables
+tabulate==0.9.0  # For table formatting
+
 # Text Processing
 tiktoken==0.8.0
 

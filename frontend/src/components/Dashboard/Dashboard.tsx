@@ -9,17 +9,19 @@ const Dashboard: React.FC = () => {
   const { data: ragStats } = useQuery({
     queryKey: ['ragStats'],
     queryFn: ragAPI.getStats,
-    staleTime: 10000, // 10 seconds
+    staleTime: 0, // Always consider stale for real-time updates
+    refetchOnMount: true,
     refetchOnWindowFocus: true,
-    refetchInterval: 30000, // Auto-refresh every 30s
+    refetchInterval: 15000, // Auto-refresh every 15s
   });
 
   const { data: flashcardStats } = useQuery({
     queryKey: ['flashcardStats'],
     queryFn: flashcardsAPI.getStats,
-    staleTime: 10000, // 10 seconds
+    staleTime: 0, // Always consider stale for real-time updates
+    refetchOnMount: true,
     refetchOnWindowFocus: true,
-    refetchInterval: 30000, // Auto-refresh every 30s
+    refetchInterval: 15000, // Auto-refresh every 15s
   });
 
   const stats = [

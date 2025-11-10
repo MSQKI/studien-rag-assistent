@@ -11,6 +11,7 @@ from loguru import logger
 
 from app.config import get_settings
 from app.services.rag.document_processor import DocumentProcessor
+from app.services.rag.advanced_document_processor import AdvancedDocumentProcessor
 from app.services.rag.rag_chain import RAGAssistant
 from app.services.graph.entity_extractor import EntityExtractor
 from app.services.graph.graph_builder import GraphBuilder
@@ -30,7 +31,19 @@ class DocumentPipeline:
     def __init__(self):
         """Initialize pipeline components."""
         self.settings = get_settings()
-        self.doc_processor = DocumentProcessor()
+
+        # Choose PDF processor based on config
+        if self.settings.use_advanced_pdf_processing:
+            try:
+                self.doc_processor = AdvancedDocumentProcessor()
+                logger.info("✅ Using Advanced PDF Processor (Unstructured.io)")
+            except Exception as e:
+                logger.warning(f"Advanced processor unavailable ({e}), falling back to standard")
+                self.doc_processor = DocumentProcessor()
+        else:
+            self.doc_processor = DocumentProcessor()
+            logger.info("Using Standard PDF Processor (PyPDF)")
+
         self.entity_extractor = EntityExtractor()
         self.flashcard_generator = FlashcardGenerator()
         logger.info("Initialized document pipeline")
@@ -78,7 +91,15 @@ class DocumentPipeline:
         try:
             # Step 1: Extract and chunk document (must happen first)
             logger.info(f"Step 1/4: Chunking document {filename}")
-            documents = self.doc_processor.process_pdf(file_path)
+
+            # Use appropriate processor (async for advanced, sync for standard)
+            if isinstance(self.doc_processor, AdvancedDocumentProcessor):
+                documents = await self.doc_processor.process_pdf(
+                    file_path,
+                    use_vision=self.settings.use_vision_for_images
+                )
+            else:
+                documents = self.doc_processor.process_pdf(file_path)
 
             # Add document_id to ALL chunk metadata for tracking
             for doc in documents:
@@ -87,7 +108,7 @@ class DocumentPipeline:
 
             results["chunks_created"] = len(documents)
 
-            logger.info(f"Created {len(documents)} chunks, now processing in parallel...")
+            logger.info(f"Created {len(documents)} chunks (advanced={self.settings.use_advanced_pdf_processing}, vision={self.settings.use_vision_for_images}), now processing in parallel...")
 
             # Step 2-4: Process in parallel for speed
             tasks = []
