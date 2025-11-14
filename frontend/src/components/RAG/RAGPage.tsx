@@ -65,6 +65,7 @@ const RAGPage: React.FC = () => {
     setIsUploading(true);
     try {
       const response = await documentsAPI.upload(file);
+      console.log('[RAGPage] Upload successful, document_id:', response.document_id);
       setUploadingDocumentId(response.document_id);
       toast.success(`${file.name} erfolgreich hochgeladen! Verarbeitung läuft im Hintergrund...`);
     } catch (error) {

@@ -25,6 +25,19 @@ export function useDocumentProgress(documentId: string | null) {
       return;
     }
 
+    // Initialize with loading state immediately
+    console.log('[DocumentProgress] Initializing progress for document:', documentId);
+    setProgress({
+      document_id: documentId,
+      filename: 'Dokument wird hochgeladen...',
+      status: 'started',
+      step: 'Verbindung wird hergestellt...',
+      progress: 0,
+      total_steps: 4,
+      current_step: 0,
+      details: 'Warte auf Server-Antwort...'
+    });
+
     // Connect to SSE endpoint
     const eventSource = new EventSource(`http://localhost:8000/api/progress/stream/${documentId}`);
     eventSourceRef.current = eventSource;
@@ -37,6 +50,7 @@ export function useDocumentProgress(documentId: string | null) {
     eventSource.onmessage = (event) => {
       try {
         const data: ProgressData = JSON.parse(event.data);
+        console.log('[DocumentProgress] SSE message received:', data.step, `(${data.progress}%)`);
         setProgress(data);
 
         // Auto-close connection when done
