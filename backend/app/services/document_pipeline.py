@@ -54,7 +54,8 @@ class DocumentPipeline:
         subject: str | None = None,
         assistant: RAGAssistant = None,
         graph_builder: GraphBuilder = None,
-        document_id: str | None = None
+        document_id: str | None = None,
+        progress_tracker = None
     ) -> Dict[str, Any]:
         """
         Process a document through the complete pipeline with parallel processing.
@@ -108,7 +109,27 @@ class DocumentPipeline:
 
             results["chunks_created"] = len(documents)
 
+            # Update progress: Chunking complete
+            if progress_tracker:
+                progress_tracker.update_progress(
+                    document_id,
+                    step="Dokument aufgeteilt",
+                    progress=30,
+                    current_step=1,
+                    details=f"{len(documents)} Textabschnitte erstellt"
+                )
+
             logger.info(f"Created {len(documents)} chunks (advanced={self.settings.use_advanced_pdf_processing}, vision={self.settings.use_vision_for_images}), now processing in parallel...")
+
+            # Update progress: Starting parallel processing
+            if progress_tracker:
+                progress_tracker.update_progress(
+                    document_id,
+                    step="Wird indexiert und analysiert...",
+                    progress=40,
+                    current_step=2,
+                    details="Vektorsuche, Knowledge Graph und Karteikarten werden erstellt"
+                )
 
             # Step 2-4: Process in parallel for speed
             tasks = []

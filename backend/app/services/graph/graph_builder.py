@@ -399,7 +399,7 @@ class GraphBuilder:
             # Count nodes before deletion
             count_query = """
             MATCH (n)
-            WHERE n.document_id = $document_id
+            WHERE n.document_id IS NOT NULL AND n.document_id = $document_id
             RETURN count(n) as node_count
             """
             result = session.run(count_query, document_id=document_id)
@@ -408,7 +408,7 @@ class GraphBuilder:
             # Delete all nodes with this document_id (DETACH removes relationships)
             delete_query = """
             MATCH (n)
-            WHERE n.document_id = $document_id
+            WHERE n.document_id IS NOT NULL AND n.document_id = $document_id
             DETACH DELETE n
             """
             session.run(delete_query, document_id=document_id)

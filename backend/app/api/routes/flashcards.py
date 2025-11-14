@@ -58,7 +58,7 @@ class GenerateRequest(BaseModel):
     count: int = 10
 
 
-@router.get("/", response_model=List[Flashcard])
+@router.get("", response_model=List[Flashcard])
 async def list_flashcards(
     subject: str | None = Query(None, description="Filter by subject"),
     tag: str | None = Query(None, description="Filter by tag"),
@@ -87,7 +87,7 @@ async def list_flashcards(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/", response_model=Flashcard)
+@router.post("", response_model=Flashcard)
 async def create_flashcard(
     flashcard: FlashcardCreate,
     manager: FlashcardManager = Depends(get_flashcard_manager)

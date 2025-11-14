@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Trash2, Edit2, FileText, Brain, Database, Plus } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 import { documentsAPI, flashcardsAPI, graphAPI } from '../../services/api';
 
@@ -56,10 +57,10 @@ const DataManagementPage: React.FC = () => {
       await refetchFlashcards();
       await refetchGraph();
 
-      alert('Dokument erfolgreich gelöscht');
+      toast.success('Dokument erfolgreich gelöscht');
     },
     onError: (error) => {
-      alert(`Fehler beim Löschen: ${error}`);
+      toast.error(`Fehler beim Löschen: ${error}`);
     },
   });
 
@@ -70,10 +71,10 @@ const DataManagementPage: React.FC = () => {
       await queryClient.invalidateQueries({ queryKey: ['flashcards'], refetchType: 'active' });
       await queryClient.invalidateQueries({ queryKey: ['flashcardStats'], refetchType: 'active' });
       await refetchFlashcards();
-      alert('Karteikarte erfolgreich gelöscht');
+      toast.success('Karteikarte erfolgreich gelöscht');
     },
     onError: (error) => {
-      alert(`Fehler beim Löschen: ${error}`);
+      toast.error(`Fehler beim Löschen: ${error}`);
     },
   });
 
@@ -84,10 +85,10 @@ const DataManagementPage: React.FC = () => {
       await queryClient.invalidateQueries({ queryKey: ['flashcards'], refetchType: 'active' });
       await refetchFlashcards();
       setEditingFlashcard(null);
-      alert('Karteikarte erfolgreich aktualisiert');
+      toast.success('Karteikarte erfolgreich aktualisiert');
     },
     onError: (error) => {
-      alert(`Fehler beim Aktualisieren: ${error}`);
+      toast.error(`Fehler beim Aktualisieren: ${error}`);
     },
   });
 
@@ -101,10 +102,10 @@ const DataManagementPage: React.FC = () => {
       await queryClient.invalidateQueries({ queryKey: ['graphData'], refetchType: 'active' });
       await queryClient.invalidateQueries({ queryKey: ['concepts'], refetchType: 'active' });
       await refetchGraph();
-      alert('Knowledge Graph erfolgreich geleert');
+      toast.success('Knowledge Graph erfolgreich geleert');
     },
     onError: (error) => {
-      alert(`Fehler beim Leeren: ${error}`);
+      toast.error(`Fehler beim Leeren: ${error}`);
     },
   });
 
@@ -117,10 +118,10 @@ const DataManagementPage: React.FC = () => {
       await queryClient.invalidateQueries({ queryKey: ['flashcardStats'], refetchType: 'active' });
       await queryClient.invalidateQueries({ queryKey: ['nextFlashcard'], refetchType: 'active' });
       await refetchFlashcards();
-      alert(`Alle Karteikarten erfolgreich gelöscht (${data.deleted_count} Karten)`);
+      toast.success(`Alle Karteikarten erfolgreich gelöscht (${data.deleted_count} Karten)`);
     },
     onError: (error) => {
-      alert(`Fehler beim Löschen: ${error}`);
+      toast.error(`Fehler beim Löschen: ${error}`);
     },
   });
 
@@ -132,10 +133,10 @@ const DataManagementPage: React.FC = () => {
       await queryClient.invalidateQueries({ queryKey: ['flashcards'], refetchType: 'active' });
       await queryClient.invalidateQueries({ queryKey: ['flashcardStats'], refetchType: 'active' });
       await refetchFlashcards();
-      alert(`${data.flashcards_generated} neue Karteikarten erfolgreich generiert!`);
+      toast.success(`${data.flashcards_generated} neue Karteikarten erfolgreich generiert!`);
     },
     onError: (error) => {
-      alert(`Fehler beim Generieren: ${error}`);
+      toast.error(`Fehler beim Generieren: ${error}`);
     },
   });
 

@@ -1,0 +1,31 @@
+{
+  "name": "studien-rag-assistent-tests",
+  "version": "1.0.0",
+  "description": "E2E Tests für Studien-RAG-Assistent",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "test:report": "playwright show-report",
+    "test:chromium": "playwright test --project=chromium",
+    "test:firefox": "playwright test --project=firefox",
+    "test:webkit": "playwright test --project=webkit",
+    "test:mobile": "playwright test --project='Mobile Chrome' --project='Mobile Safari'"
+  },
+  "keywords": [
+    "e2e",
+    "testing",
+    "playwright",
+    "rag",
+    "studien-assistent"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^20.10.0",
+    "pdfkit": "^0.13.0",
+    "typescript": "^5.3.3"
+  }
+}

@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 
 from app.config import get_settings
-from app.api.routes import rag, voice, graph, flashcards, documents
+from app.api.routes import rag, voice, graph, flashcards, documents, progress
 
 # Disable ChromaDB telemetry
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
@@ -99,6 +99,11 @@ def create_application() -> FastAPI:
         documents.router,
         prefix=f"{settings.api_prefix}/documents",
         tags=["Documents"]
+    )
+    app.include_router(
+        progress.router,
+        prefix=f"{settings.api_prefix}/progress",
+        tags=["Progress"]
     )
 
     # Root endpoint

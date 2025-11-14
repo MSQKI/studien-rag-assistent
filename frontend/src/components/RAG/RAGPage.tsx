@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Send, Loader2, Upload, Trash2, MessageSquare, Mic, Volume2, VolumeX } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import toast from 'react-hot-toast';
 
 import { ragAPI, documentsAPI } from '../../services/api';
 import { useVoiceInput } from '../../hooks/useVoiceInput';
 import { useTextToSpeech } from '../../hooks/useTextToSpeech';
+import DocumentProgress from '../DocumentProgress';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -17,7 +19,9 @@ const RAGPage: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadingDocumentId, setUploadingDocumentId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
   // Voice functionality
   const { isListening, transcript, startListening, stopListening, resetTranscript, isSupported: voiceSupported } = useVoiceInput();
@@ -60,13 +64,36 @@ const RAGPage: React.FC = () => {
 
     setIsUploading(true);
     try {
-      await documentsAPI.upload(file);
-      alert(`${file.name} erfolgreich hochgeladen!`);
+      const response = await documentsAPI.upload(file);
+      setUploadingDocumentId(response.document_id);
+      toast.success(`${file.name} erfolgreich hochgeladen! Verarbeitung läuft im Hintergrund...`);
     } catch (error) {
-      alert('Fehler beim Hochladen');
+      toast.error(`Fehler beim Hochladen: ${error}`);
     } finally {
       setIsUploading(false);
+      // Reset file input
+      e.target.value = '';
     }
+  };
+
+  const handleUploadComplete = () => {
+    // Invalidate queries to refresh data
+    queryClient.invalidateQueries({ queryKey: ['documents'] });
+    queryClient.invalidateQueries({ queryKey: ['ragStats'] });
+    queryClient.invalidateQueries({ queryKey: ['flashcards'] });
+    queryClient.invalidateQueries({ queryKey: ['graph-stats'] });
+
+    // Clear the uploading state after a delay
+    setTimeout(() => {
+      setUploadingDocumentId(null);
+    }, 3000);
+  };
+
+  const handleUploadError = (error: string) => {
+    toast.error(`Verarbeitungsfehler: ${error}`);
+    setTimeout(() => {
+      setUploadingDocumentId(null);
+    }, 5000);
   };
 
   const handleClear = async () => {
@@ -229,6 +256,13 @@ const RAGPage: React.FC = () => {
           </form>
         </div>
       </div>
+
+      {/* Real-time Progress Tracking */}
+      <DocumentProgress
+        documentId={uploadingDocumentId}
+        onComplete={handleUploadComplete}
+        onError={handleUploadError}
+      />
     </div>
   );
 };

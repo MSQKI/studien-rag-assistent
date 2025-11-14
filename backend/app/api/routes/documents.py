@@ -15,6 +15,7 @@ from app.config import get_settings, Settings
 from app.api.dependencies import get_rag_assistant, get_graph_builder
 from app.services.document_pipeline import get_document_pipeline
 from app.services.document_manager import get_document_manager
+from app.services.progress_tracker import get_progress_tracker
 
 router = APIRouter()
 
@@ -51,23 +52,43 @@ async def _process_document_background(
     filename: str
 ):
     """Background task for document processing."""
+    tracker = get_progress_tracker()
+
     try:
         logger.info(f"Starting background processing for {filename}")
+
+        # Initialize progress tracking
+        tracker.create_progress(document_id, filename)
+
         pipeline = get_document_pipeline()
         assistant = get_rag_assistant()
         graph_builder = get_graph_builder()
+
+        # Update: Starting processing
+        tracker.update_progress(
+            document_id,
+            step="PDF wird verarbeitet...",
+            progress=10,
+            current_step=1,
+            details="Dokument wird analysiert und in Textabschnitte aufgeteilt"
+        )
 
         result = await pipeline.process_document(
             file_path=file_path,
             subject=subject,
             assistant=assistant,
             graph_builder=graph_builder,
-            document_id=document_id
+            document_id=document_id,
+            progress_tracker=tracker
         )
+
+        # Mark as complete
+        tracker.complete_progress(document_id, result)
 
         logger.info(f"Background processing completed for {filename}: {result}")
     except Exception as e:
         logger.error(f"Background processing failed for {filename}: {str(e)}")
+        tracker.error_progress(document_id, str(e))
 
 
 @router.post("/upload", response_model=DocumentUploadResponse)
@@ -153,7 +174,7 @@ async def upload_document(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/", response_model=DocumentListResponse)
+@router.get("", response_model=DocumentListResponse)
 async def list_documents(
     subject: str | None = Query(None, description="Filter by subject"),
     limit: int = Query(50, ge=1, le=100),
@@ -331,7 +352,7 @@ async def generate_more_flashcards(
             "document_id": document_id,
             "filename": document["filename"],
             "flashcards_generated": len(flashcards),
-            "flashcard_ids": [fc["id"] for fc in flashcards]
+            "flashcard_ids": flashcards  # Already a list of IDs
         }
 
     except HTTPException:
