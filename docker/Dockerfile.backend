@@ -45,7 +45,6 @@ ENV PATH=/root/.local/bin:$PATH
 
 # Copy application code
 COPY backend/app ./app
-COPY src ./src
 
 # Create data directories
 RUN mkdir -p /app/data/chroma_db /app/data/uploads /app/data/flashcards
