@@ -58,7 +58,6 @@ echo.
 echo   Frontend (Hauptanwendung): http://localhost:3000
 echo   Backend API Docs:          http://localhost:8000/docs
 echo   Neo4j Browser:             http://localhost:7474
-echo   Streamlit (Legacy):        http://localhost:8501
 echo.
 echo Druecke Ctrl+C um die Logs zu beenden (Services laufen weiter)
 echo Zum Stoppen: stop.bat ausfuehren

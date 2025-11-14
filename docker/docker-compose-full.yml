@@ -85,31 +85,6 @@ services:
       retries: 3
       start_period: 40s
 
-  # Original Streamlit UI (legacy support)
-  streamlit:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-    container_name: study-platform-streamlit
-    ports:
-      - "8501:8501"
-    volumes:
-      - ../data/chroma_db:/app/data/chroma_db
-      - ../data/uploads:/app/data/uploads
-    env_file:
-      - ../.env
-    environment:
-      - ANONYMIZED_TELEMETRY=False
-    networks:
-      - study-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
 volumes:
   neo4j_data:
     driver: local

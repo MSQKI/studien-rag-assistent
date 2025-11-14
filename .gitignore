@@ -74,3 +74,6 @@ docker-compose.override.yml
 node_modules/
 *.db
 test-results/
+
+# Claude Code (local only)
+.claude/
