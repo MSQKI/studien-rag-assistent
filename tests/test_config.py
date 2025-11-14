@@ -4,7 +4,7 @@ Example test file for configuration module.
 
 import pytest
 from pathlib import Path
-from src.config import Settings, get_settings, reload_settings
+from backend.app.config import Settings, get_settings, reload_settings
 
 
 class TestSettings:

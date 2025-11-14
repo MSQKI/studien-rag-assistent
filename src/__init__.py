@@ -1,1 +1,0 @@
-# Studien-RAG-Assistent Package
